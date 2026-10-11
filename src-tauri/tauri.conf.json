@@ -34,7 +34,8 @@
       "../desktop-bridge.mjs": "backend/desktop-bridge.mjs",
       "../package.json": "backend/package.json",
       "../.runtime/node_modules/": "backend/node_modules/",
-      "../harnesses/": "backend/harnesses/"
+      "../harnesses/": "backend/harnesses/",
+      "../public/rule-validation.mjs": "backend/public/rule-validation.mjs"
     },
     "macOS": {
       "minimumSystemVersion": "12.0"

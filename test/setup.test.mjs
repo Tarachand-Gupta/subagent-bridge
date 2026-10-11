@@ -37,3 +37,14 @@ test('unavailable harnesses and symlink skill folders cannot be installed',async
   const folder=path.join(options.paths.pi,'skills','harness-bridge');await fs.mkdir(path.dirname(folder),{recursive:true});await fs.mkdir(path.join(dir,'user-folder'));await fs.symlink(path.join(dir,'user-folder'),folder);await assert.rejects(installSetup('skills','pi',options),/symlink/);
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
+test('setup distinguishes installed managed entries from current build and refreshes external removals',async()=>{
+ const {dir,options}=await fixture();try{
+  await installSetup('mcp','pi',options);await installSetup('skills','pi',options);
+  const newer={...options,bridgeRoot:path.join(dir,'new-build')};
+  let status=await setupStatus(newer);
+  for(const kind of ['mcp','skills']){const entry=status[kind].entries.find(e=>e.id==='pi');assert.equal(entry.installed,true);assert.equal(entry.current,false);assert.equal(entry.available,true);await installSetup(kind,'pi',newer);}
+  status=await setupStatus(newer);for(const kind of ['mcp','skills'])assert.equal(status[kind].entries.find(e=>e.id==='pi').current,true);
+  await fs.rm(status.skills.entries.find(e=>e.id==='pi').path);assert.equal((await setupStatus(newer)).skills.entries.find(e=>e.id==='pi').installed,false);
+  const texts=(await setupStatus(newer)).skills.entries.filter(e=>e.configText).map(e=>e.configText);assert.equal(new Set(texts).size,1);
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});

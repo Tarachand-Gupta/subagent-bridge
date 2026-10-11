@@ -68,7 +68,7 @@ test('local UI serves and rejects forged writes and foreign origins',async()=>{
  try{
   const html=await(await fetch(url)).text();assert.ok(html.includes('Who should do what?'));assert.ok(!html.includes('__BRIDGE_TOKEN__'));
   const token=html.match(/name="bridge-token" content="([^"]+)"/)[1];
-  const body=JSON.stringify({routes:[route],workspace:dir});
+  const body=JSON.stringify({routes:[{...route,enabled:false}],workspace:dir});
   assert.equal((await fetch(url+'/api/config',{method:'POST',headers:{'content-type':'application/json'},body})).status,403);
   assert.equal((await fetch(url+'/api/config',{method:'POST',headers:{'content-type':'application/json','x-bridge-token':token,origin:'https://evil.example'},body})).status,403);
   assert.equal((await fetch(url+'/api/config',{method:'POST',headers:{'content-type':'application/json','x-bridge-token':token},body})).status,200);

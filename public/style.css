@@ -38,7 +38,7 @@
 .inline-worker:hover .worker-name,.inline-worker:focus-within .worker-name,.inline-worker.is-open .worker-name{padding-right:18px}
 .inline-worker:hover .worker-name::after,.inline-worker:focus-within .worker-name::after,.inline-worker.is-open .worker-name::after{opacity:1}
 .worker-join{display:inline-grid;align-items:baseline;position:relative;width:21px;flex-shrink:0;text-align:center;transition:width .25s;color:#74a4d7;line-height:inherit}
-.worker-join>span{grid-area:1/1;transition:opacity .2s;white-space:nowrap;align-self:baseline}.join-with{opacity:0;font-size:.7em;color:#97999e}
+.worker-join>span{grid-area:1/1;transition:opacity .2s;white-space:nowrap;align-self:baseline}.join-with{opacity:0;font-size:.7em;color:#4e494f}
 .inline-worker:hover .worker-join,.inline-worker:focus-within .worker-join,.inline-worker.is-open .worker-join{width:48px}
 .inline-worker:hover .join-with,.inline-worker:focus-within .join-with,.inline-worker.is-open .join-with{opacity:1}
 .inline-worker:hover .join-slash,.inline-worker:focus-within .join-slash,.inline-worker.is-open .join-slash{opacity:0}
@@ -70,3 +70,41 @@
 @keyframes thinking-reveal{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:800px){.inline-model-summary{max-width:150px}.inline-worker:hover .inline-model-summary,.inline-worker:focus-within .inline-model-summary,.inline-worker.is-open .inline-model-summary{max-width:min(300px,calc(100vw - 290px))}}
 @media(prefers-reduced-motion:reduce){.inline-model-summary,.worker-join,.worker-join>span,.worker-name,.worker-name::after,.selection-remove{transition:none}.model-thinking-details{animation:none}}
+
+/* One menu surface for harnesses, models and single-value choices. */
+.model-popover,.worker-popover,.select-menu{background:#fffefd;border:1px solid #e1e5e9;border-radius:7px;box-shadow:0 8px 26px #34405010;color:#697583;font-size:12px;letter-spacing:0;line-height:1.5}
+.model-popover,.harness-menu{padding:10px}.harness-menu{width:300px}
+.embedded-popover{border:0;background:transparent;box-shadow:none;padding:0}
+.model-search,.embedded-popover .model-search,.compact-model-menu .model-search{border:0;border-bottom:1px solid #e5e8eb;border-radius:0;background:transparent;padding:10px 8px;font-size:12px;color:#657484;outline-offset:-1px}
+.model-search::placeholder{color:#a0a8b1}.model-options{margin-top:5px}
+.model-option,.compact-model-menu .model-option{display:flex;align-items:baseline;gap:5px;padding:9px 8px;color:#74808d;font-size:12px;border-radius:4px}
+.model-option .option-label{flex:1;min-width:0}.model-option small{padding:0;font-size:9px;flex-shrink:0;color:#a0a8b1}.model-option .option-check{width:13px;flex-shrink:0}
+.model-option:hover,.model-option.selected,.compact-model-menu .model-option.selected,.compact-model-menu .model-option:hover{background:#f0f5f9;color:#587b9e}
+.option-check,.model-row-choice .option-check{color:#6b8ba9}.option-group,.compact-model-menu .option-group{color:#a0a9b2;font-size:9px;letter-spacing:.15px;font-weight:400;padding:12px 8px 5px}
+.picker-hint{border-color:#e8ebed;color:#a0a8b1}.picker-done,.compact-model-menu .picker-done{color:#8194a6}.picker-empty{color:#a0a8b1}
+.model-select-row:hover,.model-select-row.expanded{background:#f3f6f8}.model-select-row.selected .model-row-choice{color:#536373}.model-thinking-button{color:#8a9bae}.model-thinking-button:hover,.model-thinking-button[aria-expanded=true]{color:#587fa7}
+/* No OS select menus: the same accessible themed menu serves every scalar field. */
+.themed-select{position:relative;display:inline-flex;align-items:baseline;min-width:0;max-width:100%;color:var(--orange);vertical-align:baseline}
+.select-trigger{position:relative;display:block;border:0;border-bottom:1px solid currentColor;border-radius:0;background:none;padding:0 20px 0 0;color:inherit;font:inherit;letter-spacing:inherit;line-height:inherit;text-align:left;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.select-trigger::after{content:'';position:absolute;right:2px;top:50%;width:8px;height:5px;transform:translateY(-50%);background:var(--chevron) center/8px 5px no-repeat}
+.select-menu{position:fixed;z-index:80;min-width:160px;width:max-content;max-width:min(300px,calc(100vw - 32px));padding:6px;text-transform:none}
+.select-option{display:flex;align-items:baseline;gap:6px;width:100%;border:0;border-radius:4px;background:none;text-align:left;font-size:12px;font-weight:400;letter-spacing:0;line-height:1.5;padding:8px;color:#74808d}
+.select-option:hover,.select-option[aria-selected=true]{color:#587b9e;background:#f0f5f9}.select-option:disabled{opacity:.45}.select-option .option-check{width:13px;flex-shrink:0}
+.themed-select .select-trigger:focus-visible,.select-option:focus-visible{outline:1px solid #91acc4;outline-offset:2px;border-radius:2px}
+.sentence .themed-select.thinking-select{font-size:11px!important;background:none;border:0;padding:0;min-width:86px;max-width:60%;width:auto!important;color:#587fa7}.thinking-select .select-trigger{width:100%;line-height:1.8}.thinking-select .select-menu{min-width:140px}
+/* First click arms removal; only the trash click commits it. */
+.selection-remove.confirm-remove,.rule-remove{width:18px!important;opacity:1!important}
+.selection-remove.confirm-remove{color:#6b839a}
+.selection-remove.confirm-remove::before{width:13px;height:14px;background:transparent url("data:image/svg+xml,%3Csvg width='14' height='16' viewBox='0 0 14 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%236b839a' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4h10M5 4V2h4v2M3 4l.7 10h6.6L11 4M5.5 6.5v5M8.5 6.5v5'/%3E%3C/g%3E%3C/svg%3E") center/13px 14px no-repeat;transform:translate(-50%,-50%)}
+.selection-remove.confirm-remove::after{display:none}.rule-remove{font-size:18px;height:20px}.rule.remove-preview>.sentence{opacity:.4;text-decoration:line-through}
+
+/* Shared guidance, readable labels and quiet validation. */
+.rules-intro{display:flex;align-items:center;gap:9px}.rules-intro .info-tooltip{width:340px;color:#7f8b97;border-color:#e1e5e9}
+.rule-index{font-size:13px;font-weight:500;letter-spacing:.15px;color:#8d959f}.rule-header{gap:14px;margin-bottom:16px}.rule-tools{margin-left:auto;flex-shrink:0}.rule-validation{font-size:10px;letter-spacing:0;color:#a3abb3;line-height:1.5}.rule-validation.invalid{color:#a48a72}.toggle:disabled{cursor:not-allowed;opacity:.45}.rule.off .sentence{opacity:.6}
+.inline-model-token{border-bottom:0!important}
+.rule.deletion-pending>.sentence{opacity:.28;text-decoration:none;pointer-events:none}.rule.deletion-pending .rule-index,.rule.deletion-pending .rule-validation{opacity:.4}.rule.deletion-pending .rule-remove.confirm-remove::before{background-image:url("data:image/svg+xml,%3Csvg width='14' height='16' viewBox='0 0 14 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23b56363' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4h10M5 4V2h4v2M3 4l.7 10h6.6L11 4M5.5 6.5v5M8.5 6.5v5'/%3E%3C/g%3E%3C/svg%3E")}
+.rule-delete-dialog{width:330px;max-width:calc(100vw - 40px);padding:22px;border:1px solid #e1e5e9;border-radius:9px;background:#fffefd;color:#64717f;box-shadow:0 16px 50px #34405018}.rule-delete-dialog::backdrop{background:#30394325}.rule-delete-dialog h2{font-size:16px;letter-spacing:-.2px;font-weight:500;margin:0 0 10px}.rule-delete-dialog p{font-size:12px;line-height:1.7;color:#919aa4;margin:0}.dialog-actions{display:flex;justify-content:flex-end;gap:20px;margin-top:22px}.dialog-actions button{font-size:12px;padding:4px 0;border:0;border-bottom:1px solid currentColor;background:none}.dialog-cancel{color:#8996a4}.dialog-delete{color:#b56363}
+
+.section-actions{margin-left:auto;display:flex;gap:16px;align-items:center}.setup-freshness{font-size:10px;color:#969399;margin:-12px 0 24px}.setup-update{font-size:9px;margin-left:4px;color:#557eac}.setup-unavailable{display:block;padding:0 12px 10px;color:#aaa4ac;font-size:9px;line-height:1.5}.setup-install>span:first-child{flex:1}.setup-tile-top{padding-right:12px}
+
+.select-menu[popover]{margin:0;inset:auto;overflow:auto}.select-menu::backdrop{background:transparent}
