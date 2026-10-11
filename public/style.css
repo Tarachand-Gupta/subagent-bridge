@@ -108,3 +108,18 @@
 .section-actions{margin-left:auto;display:flex;gap:16px;align-items:center}.setup-freshness{font-size:10px;color:#969399;margin:-12px 0 24px}.setup-update{font-size:9px;margin-left:4px;color:#557eac}.setup-unavailable{display:block;padding:0 12px 10px;color:#aaa4ac;font-size:9px;line-height:1.5}.setup-install>span:first-child{flex:1}.setup-tile-top{padding-right:12px}
 
 .select-menu[popover]{margin:0;inset:auto;overflow:auto}.select-menu::backdrop{background:transparent}
+
+/* Harness menus use the compact model-picker rhythm, including a shared help footer. */
+.compact-harness-menu,.worker-popover.harness-menu{width:280px;max-width:calc(100vw - 32px);padding:10px;border-radius:6px}
+.compact-harness-menu.embedded-popover{width:100%;padding:0;border:0;box-shadow:none}
+.compact-harness-menu .model-options{max-height:min(280px,48vh);margin-top:4px}
+.compact-harness-menu .model-option{min-height:32px;padding:7px 8px;font-size:13px;line-height:1.35;border-radius:3px}
+.compact-harness-menu .model-option.selected{background:transparent;color:#536373}
+.compact-harness-menu .model-option:hover,.compact-harness-menu .model-option:focus-visible{background:#f3f6f8;color:#536373}
+.picker-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 2px 0;margin-top:8px}
+.picker-footer .picker-done{margin:0 0 0 auto;padding:2px 4px}
+.picker-footer .info-tooltip{top:auto;bottom:calc(100% + 9px);width:240px;max-width:calc(100vw - 70px)}
+/* Punctuation owns its space; never tuck it underneath a name or remove control. */
+.chip-comma{flex:0 0 auto;margin:0 .18em 0 .02em;line-height:inherit;overflow:visible}
+.model-comma{flex:0 0 auto;margin:0 .08em 0 .02em}
+.model-search:focus-visible{outline:none;border-bottom-color:#8baac5}
