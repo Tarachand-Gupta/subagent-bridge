@@ -1,0 +1,20 @@
+{
+  "harness": "codex",
+  "reviewedOn": "2026-10-11",
+  "workerCommand": "codex-acp",
+  "registryId": "codex-acp",
+  "bridgeParentStatus": "Bridge-managed app-server parent: verified background delegation and automatic completion.",
+  "evidence": ".dev-state/codex-parent-live-evidence.json: independent sum323 at11.5s, worker result20.5s, automatic continuation21.1s, marker/sum143 returned. Existing external Codex app/CLI conversations are not attached.",
+  "candidate": "Use the upstream ACP adapter for workers. For managed parents study app-server turn/start and turn/steer through Paseo/T3; prove session ownership before use.",
+  "knownLimits": [
+    "App-server support does not prove attach-and-wake support for an arbitrary already-open Codex app or CLI conversation.",
+    "An MCP tool that returns a job ID does not establish automatic completion delivery."
+  ],
+  "sources": [
+    "https://github.com/agentclientprotocol/codex-acp",
+    "https://learn.chatgpt.com/docs/app-server",
+    "https://github.com/getpaseo/paseo/blob/main/docs/providers.md"
+  ],
+  "installedVersionTested": "0.160.1",
+  "handler": "v0_160/parent.mjs"
+}

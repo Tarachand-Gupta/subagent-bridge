@@ -1,0 +1,20 @@
+{
+  "harness": "pi",
+  "reviewedOn": "2026-10-11",
+  "workerCommand": "pi-acp",
+  "registryId": "pi-acp",
+  "bridgeParentStatus": "Native Pi extension uses the shared persistent worker manager, five Bridge tools, queued same-conversation messages and native follow-up completion.",
+  "evidence": "Installed Pi 1.1.0 / DigitalOcean Qwen3.8-max parent delegated once to Codex6.1Sol, queued bridge_message while running, and received READY plus exact token recall from the same ACP session without restating the token. Adapter unit tests cover lifecycle isolation and version guards.",
+  "candidate": "Keep the native extension lifecycle and shared acpx worker runtime.",
+  "knownLimits": [
+    "Jobs are currently session-local and cancelled on reload/switch/shutdown.",
+    "Extension and MCP capabilities vary by installed Pi release; older matrices can be stale."
+  ],
+  "sources": [
+    "https://github.com/svkozak/pi-acp",
+    "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md",
+    "https://github.com/getpaseo/paseo/blob/main/docs/providers.md"
+  ],
+  "installedVersionTested": "1.1.0",
+  "handler": "v1/integration.mjs"
+}

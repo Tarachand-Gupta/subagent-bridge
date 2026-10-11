@@ -1,0 +1,6 @@
+*.tgz
+.dev-state/
+node_modules/
+src-tauri/target/
+
+.runtime/

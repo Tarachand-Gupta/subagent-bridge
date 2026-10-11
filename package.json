@@ -1,0 +1,38 @@
+{
+  "name": "harness-bridge-local",
+  "version": "0.1.0",
+  "description": "Local UI and ACP delegation router for coding agents",
+  "type": "module",
+  "bin": {
+    "harness-bridge": "bin.mjs"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node bin.mjs",
+    "test": "node --test",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build",
+    "stage:runtime": "node scripts/stage-runtime.mjs"
+  },
+  "files": [
+    "bin.mjs",
+    "lib",
+    "public",
+    "README.md",
+    "LICENSE",
+    "harnesses",
+    "desktop-bridge.mjs"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "acpx": "0.19.4",
+    "jsonc-parser": "3.3.1",
+    "yaml": "2.8.3"
+  }
+}

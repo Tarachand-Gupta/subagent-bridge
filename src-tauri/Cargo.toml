@@ -1,0 +1,16 @@
+[package]
+name = "harness-bridge"
+version = "0.2.0"
+edition = "2021"
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde_json = "1"
+
+# Keep macro dylibs loadable with the macOS 27 linker (rust-lang/rust#157750).
+[profile.release]
+strip = "none"
+[profile.release.build-override]
+strip = "none"

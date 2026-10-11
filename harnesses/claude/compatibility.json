@@ -1,0 +1,17 @@
+{
+  "harness": "claude",
+  "reviewedOn": "2026-10-11",
+  "workerCommand": "claude-agent-acp",
+  "registryId": "claude-acp",
+  "bridgeParentStatus": "Deferred by user; no active subscription for testing.",
+  "evidence": "No live inference validation in this project.",
+  "candidate": "Track upstream adapter and use generic ACP worker path when user wants to enable it.",
+  "knownLimits": [
+    "Do not report supported-and-tested based on executable discovery.",
+    "Registry licensing metadata is per agent; do not assume every adapter has the registry license."
+  ],
+  "sources": [
+    "https://github.com/agentclientprotocol/claude-agent-acp",
+    "https://github.com/openclaw/acpx/blob/main/docs/agents.md"
+  ]
+}

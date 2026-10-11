@@ -1,0 +1,21 @@
+{
+  "harness": "deepseek",
+  "reviewedOn": "2026-10-11",
+  "workerCommand": "dsh --profile acp",
+  "registryId": null,
+  "bridgeParentStatus": "Implemented for desktop-bundled 0.2.0-rc.2: native tools and owner-scoped jobs with completion wakeup.",
+  "evidence": "Live DigitalOcean-backed DeepSeek parent delegated to OpenCode, returned an immediate native job ID, and automatically resumed after completion without another prompt. Exact fixture nonce and sum100 verified.",
+  "candidate": "Use version-gated native ctx.jobs integration for rc.2. Review newer subagent activation APIs separately.",
+  "knownLimits": [
+    "Runtime gate checks desktop-bundled package version; standalone layouts and newer versions remain unverified.",
+    "Installed rc.2 lacks dsh-subagent-acp and startActivation; current master docs differ.",
+    "Native jobs are process-local; headless parents must collect dependent work before exit.",
+    "One-shot worker execution; no remote continuation. Native completion notices require job_output to collect retained output."
+  ],
+  "sources": [
+    "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent-acp/README.md",
+    "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/subagent/README.md",
+    "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/subagent/tool-subagent/README.md"
+  ],
+  "testedVersion": "0.2.0-rc.2"
+}

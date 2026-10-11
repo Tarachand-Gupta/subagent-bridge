@@ -1,0 +1,21 @@
+{
+  "harness": "opencode",
+  "reviewedOn": "2026-10-11",
+  "workerCommand": "opencode acp --pure",
+  "registryId": "opencode",
+  "bridgeParentStatus": "Native v1 parent plugin implemented: per-session tools, fresh rule injection, background completion via session.promptAsync.",
+  "evidence": "Native OpenCode1.18.34 Cloudflare GPT-OSS parent: two project fixtures passed; persistent worker test queued bridge_message during first turn and received exact token recall from same Codex ACP session without restating token. Five adapter tests pass.",
+  "candidate": "Use generic ACP worker handling; keep a native parent plugin for session identity, tool registration and completion delivery. Compare supported 1.x and 2.x API contracts.",
+  "knownLimits": [
+    "Other stable 1.x releases require fresh live compatibility verification.",
+    "2.x, prereleases and unknown runtime versions are disabled before registering parent tools.",
+    "Restart existing OpenCode instances once after initial plugin installation.",
+    "ACP model visibility does not guarantee provider account access."
+  ],
+  "sources": [
+    "https://opencode.ai/docs/acp/",
+    "https://opencode.ai/docs/plugins/",
+    "https://github.com/pingdotgg/t3code/blob/main/docs/internals/providers.md",
+    "https://github.com/getpaseo/paseo/blob/main/docs/providers.md"
+  ]
+}

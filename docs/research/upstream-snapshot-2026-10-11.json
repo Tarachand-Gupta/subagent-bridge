@@ -1,0 +1,66 @@
+{
+  "reviewedOn": "2026-10-11",
+  "note": "Read-only upstream snapshots, not installed or integration-tested dependencies. GitHub metadata is supplemented by source inspection. Paseo LICENSE explicitly states Apache-2.0 except incorporated third-party components.",
+  "repositories": [
+    {
+      "repo": "openclaw/acpx",
+      "license": "MIT",
+      "archived": false,
+      "commit": "43ebad556858bb7bf8032cb16e59d9b907c18fae",
+      "commitDate": "2026-10-11T08:19:52Z",
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "agentclientprotocol/registry",
+      "license": "Apache-2.0",
+      "archived": false,
+      "commit": "5a10f2db3ff4ab2b680facebdd4f0ec84744a9a7",
+      "commitDate": "2026-10-11T14:41:03Z",
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "getpaseo/paseo",
+      "license": "NOASSERTION",
+      "archived": false,
+      "commit": "804335bc00bff52f2652f5de9e6227f013322948",
+      "commitDate": "2026-10-11T11:53:25Z",
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "pingdotgg/t3code",
+      "license": "MIT",
+      "archived": false,
+      "commit": "ed0f7b908b2e7b3a22e6fd82a73794c2fe6ee06e",
+      "commitDate": "2026-10-11T12:30:19Z",
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "hardbeat920/monocode",
+      "license": "MIT",
+      "archived": false,
+      "commit": "629ac2053bebe2c3e0b4ac9858a1ebf417f6e99c",
+      "commitDate": "2026-10-11T08:42:43Z",
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "sigilco/agentplugins",
+      "license": "Apache-2.0",
+      "archived": false,
+      "commit": "f3d9c439680d26d4316c1ed214ae9a82a2127a2a",
+      "commitDate": "2026-07-02T08:37:24Z",
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "commit": "d743267388641bc76f17c45ce8b4c231aed1d32c",
+      "commitDate": "2026-10-09T09:31:32Z",
+      "defaultBranch": "master",
+      "license": "not audited in this review"
+    }
+  ],
+  "registry": {
+    "url": "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json",
+    "agents": 41,
+    "deepseekPresent": false
+  }
+}
