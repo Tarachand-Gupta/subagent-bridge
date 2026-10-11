@@ -91,3 +91,15 @@ test('ordinary app save invalidates MCP draft revision under the same writer loc
  const latest=(await call(c,'bridge_config_read')).data;assert.equal(latest.config.routes[0].enabled,true);
  const saved=await call(c,'bridge_config_save',{config:latest.config,expectedRevision:latest.revision});assert.equal(saved.data.saved,true);
 });
+
+test('MCP model-specific thinking round-trips explicit Auto without losing inherited defaults',async t=>{
+ const {client}=await setup(t),c=await client();const before=(await call(c,'bridge_config_read')).data;
+ const config=structuredClone(before.config);config.routes[1].models=[{worker:'opencode',id:'provider/auto',reasoning:''},{worker:'opencode',id:'provider/low',reasoning:'low'},{worker:'opencode',id:'provider/inherited'}];
+ const preview=(await call(c,'bridge_config_preview',{config})).data;
+ assert.deepEqual(preview.config.routes[1].models,config.routes[1].models);
+ assert.match(preview.instructions[1],/provider\/auto \(thinking: harness default\)/);assert.match(preview.instructions[1],/provider\/low \(thinking: low\)/);assert.match(preview.instructions[1],/provider\/inherited \(thinking: high\)/);
+ const saved=(await call(c,'bridge_config_save',{config,expectedRevision:before.revision})).data;assert.equal(saved.saved,true);
+ const read=(await call(c,'bridge_config_read')).data;assert.deepEqual(read.config.routes[1].models,config.routes[1].models);assert.deepEqual(read.config.routes[0],before.config.routes[0]);
+ const invalid=structuredClone(config);invalid.routes[1].models[0].reasoning=null;assert.equal((await call(c,'bridge_config_preview',{config:invalid})).answer.isError,true);
+ assert.equal((await call(c,'bridge_models_list',{harness:'pi',modelId:'provider/model'})).data.models[0].id,'provider/model');
+});

@@ -14,8 +14,10 @@ npm run desktop:build
 Open `src-tauri/target/release/bundle/macos/Harness Bridge.app`. This unsigned local build uses Tauri IPC and does not need a browser server. Node and the harnesses remain external dependencies.
 
 1. Click **+ Add Rule**. The control is muted by default, with a thick underline on hover; it is always clickable.
-2. Choose the parent, task, **can use / should use**, worker, model, and thinking. Use **Old / New** to compare the sentence layouts without changing the rule. The new layout opens model and thinking controls from each harness name. Multi-selections are alternatives; the parent chooses one per task. Auto/default retains the worker's own setting.
+2. Choose the parent, task, **can use / should use**, worker, model, and thinking. Use **Old / New** to compare the sentence layouts without changing the rule. The new layout keeps each harness beside its compact model list. Click the harness to change allowed harnesses; click its model list to select alternatives grouped by provider. Selected models each have a thinking control with advertised discrete levels and Auto. Hover or keyboard focus reveals longer names. Multi-selections are alternatives; the parent chooses one per task. Auto/default retains the worker's own setting.
 3. **Save rules** saves shared JSON and connects supported installed native parents. Initial connection or code updates need one reload/restart; later rule changes refresh each turn.
+
+After this per-model editor upgrade, reload already-running parent integrations and MCP servers before using the new settings. The Codex native client detects older retained daemons and refuses affected delegate/followup requests instead of losing the model's thinking override. Use a new Codex chat for those settings; status, completion delivery and cancellation stay available in the original chat. Bridge never restarts a retained worker or replays its work automatically.
 4. **Settings** shows installed versions, selected compatibility handlers, model discovery, connection state, and any unsupported modes.
 
 There is no global project picker. Every parent instance supplies its own current folder and session identity. Two sessions in the same folder still own separate jobs. Pass a self-contained task with relevant context: full conversation history is not automatically copied.
@@ -86,7 +88,9 @@ DeepSeek provider definitions and selected model are read from the web profile i
 - `workers`: empty means choose one available worker other than the initiating parent.
 - `models`: worker-scoped allowed model alternatives; empty means the harness default.
 - `task`: `Auto` means any substantive task; otherwise a preset or custom task.
+- `models[].reasoning`: optional per-model thinking; empty explicitly selects Auto. When omitted, it inherits `reasoningByWorker[worker]`, then `reasoning`.
 - `reasoning`: legacy shared thinking default; empty means the harness default.
+- Thinking discovery is model-scoped. A harness-wide control is never assumed to apply to every catalog model. Unsupported explicit levels are rejected before task submission.
 - `reasoningByWorker`: optional per-harness overrides. An explicit empty value retains that harness's default. Explicit levels must be advertised by the selected worker.
 - `usage`: `can` permits delegation; `should` instructs delegation for matching tasks.
 - `enabled`: disabled rules cannot execute.

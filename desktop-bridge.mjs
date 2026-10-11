@@ -8,7 +8,7 @@ try {
  if(method==='GET'&&path==='/api/state'){const config=await load();result={agents:await detect(),config,revision:configRevision(config),connections:await connectionStatus(),integration:'Native parent integrations with persistent worker conversations'};}
  else if(method==='GET'&&path==='/api/setup-status')result=await setupStatus();
  else if(method==='POST'&&path==='/api/setup-install'){await installSetup(body.kind,body.id);result=await setupStatus();}
- else if(method==='POST'&&path==='/api/probe')result=await probe(body.agentId);
+ else if(method==='POST'&&path==='/api/probe')result=await probe(body.agentId,{modelId:body.modelId});
  else if(method==='POST'&&path==='/api/save-connect')result=await saveAndConnect(body.config||body,{expectedRevision:body.expectedRevision});
  else if(method==='POST'&&path==='/api/config')result=await save(body);
  else if(method==='POST'&&path==='/api/apply')result=await apply(body.workspace);

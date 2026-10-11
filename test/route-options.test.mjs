@@ -6,7 +6,7 @@ import path from 'node:path';
 const dir=await mkdtemp(path.join(tmpdir(),'bridge-options-'));
 process.env.HARNESS_BRIDGE_HOME=path.join(dir,'state');
 const {validate,save}=await import('../lib/core.mjs');
-const {selectRoute,availableWorkers,delegate,describeRoutes}=await import('../lib/agents.mjs');
+const {selectRoute,availableWorkers,delegate,describeRoutes,probe}=await import('../lib/agents.mjs');
 const legacy={id:'research',parent:'pi',worker:'opencode',model:'provider/a',task:'Research',reasoning:'',enabled:true};
 const route=changes=>validate({routes:[{...legacy,...changes}]}).routes[0];
 const inventory=[{id:'pi',acpReady:true},{id:'opencode',acpReady:true},{id:'codex',acpReady:true},{id:'claude',acpReady:false}];
@@ -46,7 +46,7 @@ test('ACP receives the selected model while Auto preserves the harness default',
  const executable=path.join(dir,'opencode');
  await writeFile(executable,`#!${process.execPath}
  if(process.argv.includes('--version')){console.log('1.18.34');process.exit(0);}
- let buf='',model='provider/default',effort='default';const configOptions=()=>[{id:'reasoning',name:'Thinking',type:'select',currentValue:effort,options:[{value:'default',name:'Default'},{value:'high',name:'High'}]},{id:'model',category:'model',name:'Model',type:'select',currentValue:model,options:[{value:'provider/default',name:'Default'},{value:'provider/a',name:'A'},{value:'provider/b',name:'B'}]}];process.stdin.on('data',d=>{buf+=d;let n;while((n=buf.indexOf('\\n'))>=0){const m=JSON.parse(buf.slice(0,n));buf=buf.slice(n+1);const send=o=>console.log(JSON.stringify({jsonrpc:'2.0',...o}));if(m.id===undefined)continue;let result={};if(m.method==='initialize')result={protocolVersion:1,agentCapabilities:{}};if(m.method==='session/new')result={sessionId:'test',configOptions:configOptions()};if(m.method==='session/set_config_option'){if(m.params.configId==='model')model=m.params.value;else effort=m.params.value;result={configOptions:configOptions()};}if(m.method==='session/prompt'){send({method:'session/update',params:{sessionId:'test',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:model+(effort==='default'?'':':'+effort)}}}});result={stopReason:'end_turn'};}send({id:m.id,result});}});`);
+ let buf='',model='provider/default',effort='default';const configOptions=()=>[{id:'reasoning',name:'Thinking',type:'select',currentValue:effort,options:[{value:'default',name:'Default'},{value:model==='provider/b'?'low':'high',name:model==='provider/b'?'Low':'High'}]},{id:'model',category:'model',name:'Model',type:'select',currentValue:model,options:[{value:'provider/default',name:'Default'},{value:'provider/a',name:'A'},{value:'provider/b',name:'B'}]}];process.stdin.on('data',d=>{buf+=d;let n;while((n=buf.indexOf('\\n'))>=0){const m=JSON.parse(buf.slice(0,n));buf=buf.slice(n+1);const send=o=>console.log(JSON.stringify({jsonrpc:'2.0',...o}));if(m.id===undefined)continue;let result={};if(m.method==='initialize')result={protocolVersion:1,agentCapabilities:{}};if(m.method==='session/new')result={sessionId:'test',configOptions:configOptions()};if(m.method==='session/set_config_option'){if(m.params.configId==='model')model=m.params.value;else effort=m.params.value;result={configOptions:configOptions()};}if(m.method==='session/prompt'){send({method:'session/update',params:{sessionId:'test',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:model+(effort==='default'?'':':'+effort)}}}});result={stopReason:'end_turn'};}send({id:m.id,result});}});`);
  await chmod(executable,0o755);const oldPath=process.env.PATH;process.env.PATH=dir+path.delimiter+oldPath;
  try{
   const config={routes:[route({models:[{worker:'opencode',id:'provider/a'},{worker:'opencode',id:'provider/b'}]})]};await save(config);
@@ -62,6 +62,18 @@ test('ACP receives the selected model while Auto preserves the harness default',
   await save({routes:[route({models:[],reasoning:'',reasoningByWorker:{opencode:'high'}})]});
   assert.equal((await delegate(args)).text,'provider/default:high');
   assert.match((await describeRoutes('pi'))[0].instruction,/opencode = high/);
+  await save({routes:[route({models:[{worker:'opencode',id:'provider/a',reasoning:''},{worker:'opencode',id:'provider/b',reasoning:'low'}],reasoning:'invalid-global',reasoningByWorker:{opencode:'invalid-worker'}})]});
+  assert.equal((await delegate({...args,model:'provider/a'})).text,'provider/a');
+  assert.equal((await delegate({...args,model:'provider/b'})).text,'provider/b:low');
+  const modelDescriptions=await describeRoutes('pi');assert.match(modelDescriptions[0].instruction,/provider\/a \(thinking: harness default\)/);assert.match(modelDescriptions[0].instruction,/provider\/b \(thinking: low\)/);
+  assert.deepEqual(modelDescriptions[0].availableWorkers[0].modelChoices,[{id:'provider/a',reasoning:''},{id:'provider/b',reasoning:'low'}]);
+  const baseCatalog=await probe('opencode');assert.deepEqual(baseCatalog.models.find(m=>m.id==='provider/default').reasoning,['default','high']);assert.equal(baseCatalog.models.find(m=>m.id==='provider/b').reasoning,undefined);
+  const modelCatalog=await probe('opencode',{modelId:'provider/b'});assert.equal(modelCatalog.reasoningScope,'model');assert.equal(modelCatalog.reasoningModelId,'provider/b');assert.equal(modelCatalog.currentModel,'provider/default');assert.deepEqual(modelCatalog.models.find(m=>m.id==='provider/b').reasoning,['default','low']);assert.equal(modelCatalog.models.find(m=>m.id==='provider/a').reasoning,undefined);
+  await assert.rejects(probe('opencode',{modelId:'missing'}),/not advertised/);
+  // Unsupported thinking is rejected after switching model, before a task is submitted.
+  await save({routes:[route({models:[{worker:'opencode',id:'provider/b',reasoning:'high'}]})]});
+  await assert.rejects(delegate(args),error=>error.failure.stage==='thinking'&&error.failure.outcomeUnknown===false);
+
  }finally{process.env.PATH=oldPath;}
 });
 test.after(async()=>{await rm(dir,{recursive:true,force:true});});
@@ -73,4 +85,13 @@ test('per-harness thinking is retained, scoped, and selected independently',()=>
  assert.equal(selectRoute(r,{parent:'pi',worker:'codex'},inventory).reasoning,'high');
  assert.equal(selectRoute({...r,reasoningByWorker:{}},{parent:'pi',worker:'codex'},inventory).reasoning,'medium');
  for(const value of [null,[],{unknown:'high'},{pi:'high'},{opencode:3}])assert.throws(()=>route({...r,reasoningByWorker:value}),/per-harness/);
+});
+
+test('per-model thinking preserves explicit Auto and wins over worker and legacy defaults',()=>{
+ const r=route({workers:['opencode','codex'],reasoning:'medium',reasoningByWorker:{opencode:'high'},models:[{worker:'opencode',id:'a',reasoning:''},{worker:'opencode',id:'b',reasoning:'low'},{worker:'opencode',id:'c'},{worker:'codex',id:'a'}]});
+ assert.deepEqual(route(r),r);
+ for(const [worker,model,expected]of [['opencode','a',''],['opencode','b','low'],['opencode','c','high'],['codex','a','medium']])assert.equal(selectRoute(r,{parent:'pi',worker,model},inventory).reasoning,expected);
+ for(const reasoning of [null,1,false,[],{},'a'.repeat(2001)])assert.throws(()=>route({models:[{worker:'opencode',id:'a',reasoning}]}),/per-model/);
+ assert.throws(()=>route({models:[{worker:'opencode',id:'a',reasoning:'high'},{worker:'opencode',id:'a',reasoning:'low'}]}),/unique/);
+ assert.throws(()=>route({models:[{worker:'opencode',id:'a',credentials:'secret'}]}));
 });

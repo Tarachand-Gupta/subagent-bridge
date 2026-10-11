@@ -44,7 +44,7 @@ export async function createNativeService(options,{createBridge=createParentBrid
  }
  async function execute(request){
   lastUse=Date.now();if(stopping)throw new Error('Parent service is closing');
-  if(request.op==='ping')return {ready:true};
+  if(request.op==='ping')return {ready:true,capabilities:{modelReasoning:1}};
   if(request.op==='close'){stopping=true;await bridge.close();return {closed:true};}
   if(request.op==='drain'){
    const deadline=Date.now()+Math.max(0,Math.min(stopWaitMs,Number(request.waitMs)||0));
@@ -87,8 +87,8 @@ async function post(endpoint,request,timeout=215000){
  const value=await response.json();if(!value.ok)throw new Error(value.error||'Parent service rejected request');return value.value;
 }
 export async function nativeRequest(options,request,{start=true}={}){
- const dir=sessionDirectory(options),endpointFile=path.join(dir,'endpoint.json');let endpoint=await json(endpointFile);
- if(endpoint){try{await post(endpoint,{op:'ping'},1000);}catch{endpoint=null;}}
+ const dir=sessionDirectory(options),endpointFile=path.join(dir,'endpoint.json');let endpoint=await json(endpointFile),handshake;
+ if(endpoint){try{handshake=await post(endpoint,{op:'ping'},1000);}catch{endpoint=null;}}
  if(!endpoint&&!start)return null;
  if(!endpoint){
   await fs.mkdir(dir,{recursive:true,mode:0o700});const lock=path.join(dir,'starting');let acquired=false;
@@ -97,9 +97,19 @@ export async function nativeRequest(options,request,{start=true}={}){
   if(acquired){
    const child=spawn(process.execPath,[self,'serve',JSON.stringify(options)],{cwd:options.cwd,env:{...process.env,HARNESS_BRIDGE_HOME:options.bridgeHome||home},detached:true,stdio:'ignore'});child.unref();child.on('error',()=>{});
   }
-  for(let i=0;i<80;i++){await pause(100);endpoint=await json(endpointFile);if(endpoint){try{await post(endpoint,{op:'ping'},500);break;}catch{endpoint=null;}}}
+  for(let i=0;i<80;i++){await pause(100);endpoint=await json(endpointFile);if(endpoint){try{handshake=await post(endpoint,{op:'ping'},500);break;}catch{endpoint=null;}}}
   if(acquired)await fs.rm(lock,{recursive:true,force:true});
   if(!endpoint)throw new Error('Cannot start the Codex parent service. No worker has been replayed.');
+ }
+ // An already-running daemon may still own a worker host with the old schema.
+ // Reject only affected new turns; leave retrieval and cancellation available.
+ if(['delegate','message'].includes(request.op)&&!handshake?.capabilities?.modelReasoning){
+  const config=await json(path.join(options.bridgeHome||home,'config.json'));
+  const routeId=request.op==='delegate'?request.args?.route:(await json(path.join(dir,'jobs.json')))?.[request.args?.jobId]?.route;
+  const routes=(config?.routes||[]).filter(route=>!routeId||route.id===routeId);
+  if(routes.some(route=>route.models?.some(model=>Object.hasOwn(model,'reasoning')))){
+   throw new Error('BRIDGE_UPGRADE_REQUIRED: This Codex chat still uses an older bridge process that cannot apply per-model thinking. No task or message was submitted. Use a new Codex chat for the updated settings. Existing jobs remain available for status, completion delivery and cancellation; no work was restarted or replayed.');
+  }
  }
  // Mutating requests are never automatically retried: their outcome could already have taken effect.
  return post(endpoint,request);
