@@ -22,3 +22,11 @@ Multiple models and harnesses are alternatives for a single delegation, not auto
 The separate native preview avoids closing the user's original app. Mouse hover and focus share reveal styling; keyboard focus and native screenshots were checked. This does not claim every future catalog or window size has been exhaustively tested.
 
 An already-running Codex native daemon may own a worker host using the previous schema. Updated clients refuse per-model delegate/message requests against that daemon and explain how to use a new chat; retrieval, cancellation and unchanged legacy routes remain available. Other already-loaded parent integrations and MCP servers must reload after the code upgrade. No existing worker process is automatically restarted, and no task is replayed.
+
+## October 12 refinement
+
+Thinking now expands within the model list row, with a native dropdown for Auto and advertised levels. The collapsed row displays the chosen level as text. The detached thinking popover, bars and slider were removed. Sentence controls share a chevron asset and baseline; “with” aligns with the adjacent names.
+
+Visible parent, worker and model selections expose a remove button on hover/focus. Its muted strike-through preview is scoped to that selection; worker removal includes its model choices and thinking overrides. Removing the final explicit selection restores that field's Auto behavior. Removal is only a local draft edit until Save.
+
+Native Review checks covered setting Qwen High, collapsing/reopening, preserving High when another model is added/removed, model-only and whole-harness removal previews, last-model Auto, whole-harness deletion, and parent removal in the Old view. The existing user Preview had unsaved selections, so it was left untouched. UI test edits were not saved. The 11 route-options/MCP regression tests passed.
