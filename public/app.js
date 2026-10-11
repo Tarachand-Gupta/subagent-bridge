@@ -40,15 +40,24 @@ function levels(worker,model){
  const c=catalogs.get(worker),m=c?.models.find(m=>m.id===(model||c.currentModel));
  return(m?.reasoning||[]).map(v=>typeof v==='string'?[v,v]:[String(v.value),v.name||String(v.value)]);
 }
+// Some ACP catalogs expose controls only after selecting a model. Warm selected
+// models without spawning a discovery process for every catalog entry.
+const capabilityQueue=[];let capabilityActive=0;
+function scheduleCapability(task){return new Promise((resolve,reject)=>{capabilityQueue.push({task,resolve,reject});drainCapabilities();});}
+function drainCapabilities(){while(capabilityActive<2&&capabilityQueue.length){const item=capabilityQueue.shift();capabilityActive++;Promise.resolve().then(item.task).then(item.resolve,item.reject).finally(()=>{capabilityActive--;drainCapabilities();});}}
 async function probeThinking(worker,model){
- const key=modelKey({worker,id:model});if(modelProbes.has(key))return modelProbes.get(key);
- const pending=(async()=>{try{
-  const result=await api('/api/probe',{agentId:worker,modelId:model}),catalog=catalogs.get(worker)||{models:[]};
-  const queried=result.models?.find(m=>m.id===model);
-  if(queried){const existing=catalog.models.find(m=>m.id===model);if(existing){existing.reasoning=queried.reasoning||[];delete existing.reasoningError;}else catalog.models.push(queried);catalogs.set(worker,catalog);}
-  return queried?.reasoning||[];
- }catch(error){const meta=catalogs.get(worker)?.models.find(m=>m.id===model);if(meta)meta.reasoningError=error.message;throw error;}finally{refreshCards();}})();
- modelProbes.set(key,pending);try{return await pending;}finally{modelProbes.delete(key);}
+ const key=modelKey({worker,id:model}),catalog=catalogs.get(worker),meta=catalog?.models.find(m=>m.id===model);
+ if(Array.isArray(meta?.reasoning))return meta.reasoning;
+ if(modelProbes.has(key))return modelProbes.get(key);
+ if(!meta)return [];
+ if(meta.reasoningError)throw new Error(meta.reasoningError);
+ const pending=scheduleCapability(async()=>{try{
+  const result=await api('/api/probe',{agentId:worker,modelId:model}),queried=result.models?.find(m=>m.id===model);
+  if(!queried||!Array.isArray(queried.reasoning))throw new Error('Thinking controls were not returned. Retry to check again.');
+  if(catalogs.get(worker)===catalog){meta.reasoning=queried.reasoning;delete meta.reasoningError;}
+  return queried.reasoning;
+ }catch(error){if(catalogs.get(worker)===catalog)meta.reasoningError=error.message;throw error;}});
+ modelProbes.set(key,pending);try{return await pending;}finally{modelProbes.delete(key);refreshCards();}
 }
 function thinking(r){const alternatives=workerIds(r).flatMap(worker=>{const ms=r.models.filter(m=>m.worker===worker);return(ms.length?ms:[{id:''}]).map(m=>levels(worker,m.id));});if(!alternatives.length)return[];return alternatives[0].filter(([v])=>alternatives.every(opts=>opts.some(([id])=>id===v)));}
 async function probe(id){if(probing.has(id))return;probing.add(id);renderAgents();refreshCards();try{const c=await api('/api/probe',{agentId:id});catalogs.set(id,{...c,models:(c.models||[]).map(m=>typeof m==='string'?{id:m,name:m}:m)});}catch(e){catalogs.set(id,{models:[],error:e.message});}finally{probing.delete(id);renderAgents();refreshCards();}}
@@ -76,7 +85,7 @@ function confirmRuleRemoval(card,label,remove){
  const dismiss=()=>{dialog.close();dialog.remove();cancelRemoval();card.querySelector('.rule-remove')?.focus();};cancel.addEventListener('click',dismiss);dialog.addEventListener('cancel',event=>{event.preventDefault();dismiss();});dialog.addEventListener('click',event=>{if(event.target===dialog){const b=dialog.getBoundingClientRect();if(event.clientX<b.left||event.clientX>b.right||event.clientY<b.top||event.clientY>b.bottom)dismiss();}});confirm.addEventListener('click',()=>{dialog.close();dialog.remove();remove();$('#add').focus();});dialog.showModal();cancel.focus();
 }
 function ensureThinkingChecks(r){
- for(const worker of workerIds(r)){const c=catalogs.get(worker);if(!c||c.error)continue;const selected=r.models.filter(m=>m.worker===worker);for(const m of selected.length?selected:[{id:c.currentModel}]){const meta=c.models?.find(x=>x.id===m.id),level=effectiveReasoning(r,worker,m.id);if(level&&meta&&!meta.reasoningError&&!Array.isArray(meta.reasoning))void probeThinking(worker,m.id).catch(()=>{});}}
+ for(const worker of workerIds(r)){const c=catalogs.get(worker);if(!c||c.error)continue;const selected=r.models.filter(m=>m.worker===worker);for(const m of selected.length?selected:[{id:c.currentModel}]){const meta=c.models?.find(x=>x.id===m.id);if(meta&&!meta.reasoningError&&!Array.isArray(meta.reasoning))void probeThinking(worker,m.id).catch(()=>{});}}
 }
 function multiPicker({label,auto,entries,values,choose,onOpen,models=false,embedded=false,onClose}){
  const wrap=el('div','combo'),shell=el('span','chip combo-trigger'),button=el('button','combo-open'),chips=el('span','combo-chips'),popup=el('div',`model-popover ${models?'compact-model-menu':'compact-harness-menu'}`),search=el('input','model-search'),options=el('div','model-options');
@@ -132,7 +141,7 @@ function compactModelName(worker,model){
 function providerName(model){const provider=model.provider;return provider?.name||provider?.id||(typeof provider==='string'?provider:null)||model.name?.split(' · ').slice(1).join(' · ')|| (model.id.includes('/')?model.id.split('/')[0]:'Models');}
 function workerEditor(r,id,index,updated,chooseWorkers){
  const wrap=el('div','worker-editor inline-worker'),harnessLabel=el('span','harness-label'),harness=el('button','worker-name',names[id]),join=el('span','worker-join'),slash=el('span','join-slash','/'),withWord=el('span','join-with','with'),summary=el('span','inline-model-summary'),popup=el('div','worker-popover compact-model-menu'),search=el('input','model-search'),options=el('div','model-options'),hint=el('div','picker-hint');
- let thinkingId=null,thinkingError='',thinkingLoading=false;
+ let thinkingId=null;
  harness.type='button';harness.setAttribute('aria-label',`Harnesses for rule ${index+1}, ${names[id]} group`);harness.setAttribute('aria-expanded','false');
  popup.id=`models-${crypto.randomUUID()}`;popup.setAttribute('role','dialog');popup.setAttribute('aria-label',`${names[id]} model selection`);popup.hidden=true;
  search.type='search';search.placeholder='Search models or providers…';search.setAttribute('aria-label',`Search ${names[id]} models for rule ${index+1}`);
@@ -141,7 +150,7 @@ function workerEditor(r,id,index,updated,chooseWorkers){
  const harnessPicker=multiPicker({label:`Choose harnesses for rule ${index+1}`,auto:'Auto · any available harness',embedded:true,onClose:()=>{close();harness.focus();},entries:()=>Object.keys(names).map(worker=>({value:worker,label:names[worker],detail:agents.find(a=>a.id===worker)?.installed?'Installed':'Not detected'})),values:()=>r.workers,choose:chooseWorkers});
  const harnessMenu=el('div','worker-popover harness-menu');harnessMenu.hidden=true;harnessMenu.append(harnessPicker.element);
  function focusModels(){summary.querySelector('button')?.focus({preventScroll:true});}
- function closeThinking(){thinkingId=null;thinkingError='';thinkingLoading=false;fillModels();}
+ function closeThinking(){thinkingId=null;fillModels();}
  function close(){popup.hidden=true;harnessMenu.hidden=true;thinkingId=null;wrap.classList.remove('is-open');summary.querySelectorAll('[aria-expanded]').forEach(b=>b.setAttribute('aria-expanded','false'));harness.setAttribute('aria-expanded','false');}
  function closeOthers(){for(const other of document.querySelectorAll('.worker-editor'))if(other!==wrap)other.closeEditor?.();for(const combo of document.querySelectorAll('.combo'))combo.closePicker?.();}
  function position(){if(!popup.hidden)positionPopover(popup,summary);if(!harnessMenu.hidden)positionPopover(harnessMenu,harness);}
@@ -151,18 +160,25 @@ function workerEditor(r,id,index,updated,chooseWorkers){
  harnessLabel.append(harness,removeHarness);done.addEventListener('click',()=>{close();focusModels();});search.addEventListener('input',fillModels);
  function selectModel(model){const selected=r.models.find(m=>m.worker===id&&m.id===model);if(selected){r.models=r.models.filter(m=>m!==selected);if(thinkingId===model)thinkingId=null;}else r.models.push({worker:id,id:model});changed(r);updated();}
  const thinkingText=(model)=>{const value=effectiveReasoning(r,id,model);return value?value.charAt(0).toUpperCase()+value.slice(1):'Auto';};
- async function openThinking(model){
-  if(thinkingId===model){closeThinking();return;}thinkingId=model;thinkingError='';thinkingLoading=!Array.isArray(catalogs.get(id)?.models.find(m=>m.id===model)?.reasoning);fillModels();position();
-  if(thinkingLoading){try{await probeThinking(id,model);}catch(error){if(thinkingId===model)thinkingError=error.message;}finally{if(thinkingId===model){thinkingLoading=false;fillModels();position();}}}
+ function openThinking(model){
+  if(thinkingId===model){closeThinking();return;}thinkingId=model;
+  void probeThinking(id,model).catch(()=>{});fillModels();position();
  }
  function thinkingRow(model){
   const section=el('div','model-thinking-details'),line=el('div','thinking-field'),label=el('label','','Thinking'),current=effectiveReasoning(r,id,model),choices=levels(id,model);
-  const control=select(`Thinking level for ${compactModelName(id,model)} in ${names[id]}`,[['','Auto'],...choices.map(([value,name])=>[value,name.charAt(0).toUpperCase()+name.slice(1)])],current,value=>{const selected=r.models.find(m=>m.worker===id&&m.id===model);if(selected){selected.reasoning=value;changed(r);updated();}});
-  control.classList.add('thinking-select');control.trigger.dataset.modelControl=`level:${model}`;control.trigger.id=`thinking-${crypto.randomUUID()}`;label.htmlFor=control.trigger.id;
-  if(current&&!choices.some(([value])=>value===current))control.setChoices([['','Auto'],...choices.map(([value,name])=>[value,name]),[current,`${thinkingText(model)} · saved`,true]],current);
-  control.setDisabled(thinkingLoading);line.append(label,control);section.append(line);
-  const note=thinkingLoading?'Checking supported levels…':thinkingError||(!choices.length?'No adjustable levels advertised. Auto uses the model’s default.':current&&!choices.some(([value])=>value===current)?'Saved level is unavailable. Choose Auto or a supported level.':'');
-  if(note)section.append(el('p','effort-note',note));return section;
+  const meta=catalogs.get(id)?.models.find(m=>m.id===model),fetching=!Array.isArray(meta?.reasoning)&&!meta?.reasoningError;
+  line.append(label);
+  if(!meta){line.append(el('span','thinking-fetching','Unavailable'));}
+  else if(fetching){const status=el('span','thinking-fetching');status.setAttribute('role','status');status.setAttribute('aria-label',`Fetching thinking levels for ${compactModelName(id,model)}`);status.append(el('span','install-spinner'),el('span','','Fetching'));line.append(status);}
+  else if(meta?.reasoningError){const retry=el('button','thinking-retry','Retry');retry.type='button';retry.title=meta.reasoningError;retry.setAttribute('aria-label',`Retry thinking levels for ${compactModelName(id,model)}`);retry.addEventListener('click',()=>{delete meta.reasoningError;void probeThinking(id,model).catch(()=>{});fillModels();});line.append(retry);}
+  else{
+   const control=select(`Thinking level for ${compactModelName(id,model)} in ${names[id]}`,[['','Auto'],...choices.map(([value,name])=>[value,name.charAt(0).toUpperCase()+name.slice(1)])],current,value=>{const selected=r.models.find(m=>m.worker===id&&m.id===model);if(selected){selected.reasoning=value;changed(r);updated();}});
+   control.classList.add('thinking-select');control.trigger.dataset.modelControl=`level:${model}`;control.trigger.id=`thinking-${crypto.randomUUID()}`;label.htmlFor=control.trigger.id;
+   if(current&&!choices.some(([value])=>value===current))control.setChoices([['','Auto'],...choices.map(([value,name])=>[value,name]),[current,`${thinkingText(model)} · saved`,true]],current);
+   if(!choices.length)control.trigger.title='No adjustable levels advertised. Auto uses the model’s default.';
+   line.append(control);
+  }
+  section.append(line);return section;
  }
  function fillModels(){
   const previousScroll=options.scrollTop,focused=options.contains(document.activeElement)?document.activeElement?.dataset.modelControl:null,q=search.value.trim().toLowerCase(),catalog=catalogs.get(id),models=[...(catalog?.models||[])];
@@ -172,7 +188,7 @@ function workerEditor(r,id,index,updated,chooseWorkers){
   const isSelected=model=>r.models.some(m=>m.worker===id&&m.id===model.id);
   for(const [provider,list]of [...groups].sort((a,b)=>Number(b[1].some(isSelected))-Number(a[1].some(isSelected)))){list.sort((a,b)=>Number(isSelected(b))-Number(isSelected(a)));options.append(el('div','option-group',provider));for(const model of list){
    const selected=isSelected(model),row=el('div','model-select-row'+(selected?' selected':'')+(thinkingId===model.id?' expanded':'')),top=el('div','model-row-top'),choice=el('button','model-row-choice'),name=el('span','model-row-name',compactModelName(id,model.id));choice.type='button';choice.dataset.modelControl=`select:${model.id}`;choice.setAttribute('aria-pressed',String(selected));choice.setAttribute('aria-label',`${selected?'Deselect':'Select'} ${model.name||model.id} from ${provider}`);choice.title=model.id;choice.append(el('span','option-check',selected?'✓':''),name);if(model.saved)choice.append(el('span','saved-model-marker','saved'));choice.addEventListener('click',()=>selectModel(model.id));top.append(choice);
-   if(selected){const control=el('button','model-thinking-button',thinkingText(model.id));control.type='button';control.dataset.modelControl=`thinking:${model.id}`;control.setAttribute('aria-label',`Thinking for ${model.name||model.id}: ${thinkingText(model.id)}`);control.setAttribute('aria-expanded',String(thinkingId===model.id));control.addEventListener('click',()=>void openThinking(model.id));const remove=removalButton(`Remove ${model.name||model.id} from ${names[id]}`,row,()=>{selectModel(model.id);search.focus({preventScroll:true});});top.append(control,remove);}
+   if(selected){const control=el('button','model-thinking-button',thinkingText(model.id));control.type='button';control.dataset.modelControl=`thinking:${model.id}`;control.setAttribute('aria-label',`Thinking for ${model.name||model.id}: ${thinkingText(model.id)}`);control.setAttribute('aria-expanded',String(thinkingId===model.id));control.addEventListener('click',()=>void openThinking(model.id));top.append(control);}
    row.append(top);if(selected&&thinkingId===model.id)row.append(thinkingRow(model.id));options.append(row);
   }}
   if(!groups.size)options.append(el('p','picker-empty',probing.has(id)?'Discovering models…':catalog?.error||'No matching models.'));options.scrollTop=previousScroll;if(focused)Array.from(options.querySelectorAll('[data-model-control]')).find(b=>b.dataset.modelControl===focused)?.focus({preventScroll:true});
@@ -187,7 +203,8 @@ function workerEditor(r,id,index,updated,chooseWorkers){
   if(focused)Array.from(summary.querySelectorAll('button')).find(b=>b.dataset.summaryControl===focused)?.focus({preventScroll:true});fillModels();harnessPicker.refresh();
  }
  wrap.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();if(thinkingId){const id=thinkingId;closeThinking();Array.from(options.querySelectorAll('button')).find(b=>b.dataset.modelControl===`thinking:${id}`)?.focus();}else{close();focusModels();}}});
- wrap.addEventListener('pointerenter',()=>{wrap.style.setProperty('--inline-reveal',`${Math.min(450,window.innerWidth-200)}px`);});
+ wrap.addEventListener('pointerenter',()=>{const line=wrap.closest('.sentence')?.getBoundingClientRect(),box=wrap.getBoundingClientRect();if(line)wrap.style.setProperty('--worker-line-space',`${Math.max(box.width,Math.floor(line.right-box.left)-1)}px`);wrap.style.setProperty('--inline-reveal',`${Math.min(450,window.innerWidth-200)}px`);wrap.classList.add('is-revealed');});
+ wrap.addEventListener('pointerleave',()=>wrap.classList.remove('is-revealed'));
  join.setAttribute('aria-hidden','true');join.append(slash,withWord);popup.append(search,options,hint);wrap.append(harnessLabel,join,summary,harnessMenu,popup);wrap.closeEditor=close;wrap.closeThinking=closeThinking;wrap.positionThinking=position;refresh();return{element:wrap,refresh};
 }
 function renderRules(){

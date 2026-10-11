@@ -46,3 +46,15 @@ Validation: 88 automated tests passed, including disabled drafts, unknown models
 ### Compact picker followup
 
 Harness pickers use 280px compact menus, a short Auto row, checkmark selection, and one shared info/Done footer. Repeated Installed labels and instructional paragraphs are removed. Menus capture the clicked control's position when opening; text expansion and selecting alternatives do not move them. They remain on the chosen side and scroll within available space. Commas reserve their own width without negative margins. Native preview verified multi-parent selection, persistent anchoring, help, dismissal, and visible comma separation. User drafts in the main app were not changed.
+
+### Model controls and stable hover
+
+Selected model rows now deselect through their checkmark/name; their redundant removal button is gone. Inline sentence removal controls remain. Thinking discovery occupies the control itself with a spinner and Fetching, followed by the themed dropdown; failures expose Retry with the reason in its tooltip.
+
+Catalog-provided thinking metadata is reused. For harnesses that require selecting a model to discover its controls, selected models and the current default are prefetched when the catalog loads. Newly selected models join that queue immediately. Requests are deduplicated and limited to two concurrent lookups; failures are not automatically retried. Unselected catalogs are not exhaustively probed.
+
+Hover reveal measures the current line's remaining space before applying expanded styling. The harness/model group is capped to that space and model text can shrink, preventing the group from wrapping away from the pointer and repeatedly collapsing. Full model names remain available in the picker.
+
+Validation: all 88 automated tests passed. Native Theme preview verified model-row deselection and prefetched thinking controls appearing immediately when expanded. Test selections were discarded without saving. Main app drafts were preserved.
+
+Native hover checks covered the OpenCode/Kimi group at the right edge of the 1100px preview and at a wider window size. Expanded controls stayed on their original row, with truncation only when space was limited. Both main and Theme desktop bundles built successfully.

@@ -25,28 +25,28 @@
 /* Removing is previewed locally without changing or disabling the selection. */
 .selection-remove{display:inline-block;position:relative;flex:0 0 auto;align-self:center;width:0;height:1.4em;border:0;background:transparent;padding:0;margin:0;opacity:0;overflow:hidden;color:#a6afb9;transition:width .18s ease,opacity .18s ease,color .18s ease;cursor:pointer}
 .selection-remove::before,.selection-remove::after{content:'';position:absolute;left:50%;top:50%;width:8px;height:1px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}.selection-remove::after{transform:translate(-50%,-50%) rotate(-45deg)}
-.combo:hover>.combo-trigger .selection-remove,.combo:focus-within>.combo-trigger .selection-remove,.inline-worker:hover>.harness-label .selection-remove,.inline-worker:focus-within>.harness-label .selection-remove,.inline-worker.is-open>.harness-label .selection-remove,.inline-worker:hover>.inline-model-summary .selection-remove,.inline-worker:focus-within>.inline-model-summary .selection-remove,.inline-worker.is-open>.inline-model-summary .selection-remove,.model-select-row:hover .selection-remove,.model-select-row:focus-within .selection-remove{width:18px;opacity:1}
+.combo:hover>.combo-trigger .selection-remove,.combo:focus-within>.combo-trigger .selection-remove,.inline-worker.is-revealed>.harness-label .selection-remove,.inline-worker:focus-within>.harness-label .selection-remove,.inline-worker.is-open>.harness-label .selection-remove,.inline-worker.is-revealed>.inline-model-summary .selection-remove,.inline-worker:focus-within>.inline-model-summary .selection-remove,.inline-worker.is-open>.inline-model-summary .selection-remove,.model-select-row:hover .selection-remove,.model-select-row:focus-within .selection-remove{width:18px;opacity:1}
 .selection-remove:hover,.selection-remove:focus-visible{color:#777f89}
 .selection-chip.remove-preview>.selection-label,.inline-model-token.remove-preview>.inline-model-trigger{color:#b8b9bc;text-decoration:line-through;text-decoration-thickness:1px}
 /* Compact, connected harness/model groups with one common text baseline. */
 .new-view .usage-select{color:#d99948}.new-view .sentence{row-gap:12px;column-gap:10px}
 .inline-worker{gap:0;border-bottom:1px solid #74a4d7;line-height:inherit;padding:0;max-width:100%;transition:border-color .2s;vertical-align:baseline;align-items:baseline}
-.inline-worker:hover,.inline-worker:focus-within,.inline-worker.is-open{border-color:#5594db}
+.inline-worker.is-revealed,.inline-worker:focus-within,.inline-worker.is-open{border-color:#5594db}
 .harness-label{display:inline-flex;align-items:baseline;flex-shrink:0;line-height:inherit}
 .worker-name{position:relative;border:0;background:none;color:#5594db;font:inherit;letter-spacing:inherit;line-height:inherit;padding:0;white-space:nowrap;flex-shrink:0;transition:padding-right .18s ease}
 .worker-name::after{opacity:0;transition:opacity .18s ease}
-.inline-worker:hover .worker-name,.inline-worker:focus-within .worker-name,.inline-worker.is-open .worker-name{padding-right:18px}
-.inline-worker:hover .worker-name::after,.inline-worker:focus-within .worker-name::after,.inline-worker.is-open .worker-name::after{opacity:1}
+.inline-worker.is-revealed .worker-name,.inline-worker:focus-within .worker-name,.inline-worker.is-open .worker-name{padding-right:18px}
+.inline-worker.is-revealed .worker-name::after,.inline-worker:focus-within .worker-name::after,.inline-worker.is-open .worker-name::after{opacity:1}
 .worker-join{display:inline-grid;align-items:baseline;position:relative;width:21px;flex-shrink:0;text-align:center;transition:width .25s;color:#74a4d7;line-height:inherit}
 .worker-join>span{grid-area:1/1;transition:opacity .2s;white-space:nowrap;align-self:baseline}.join-with{opacity:0;font-size:.7em;color:#4e494f}
-.inline-worker:hover .worker-join,.inline-worker:focus-within .worker-join,.inline-worker.is-open .worker-join{width:48px}
-.inline-worker:hover .join-with,.inline-worker:focus-within .join-with,.inline-worker.is-open .join-with{opacity:1}
-.inline-worker:hover .join-slash,.inline-worker:focus-within .join-slash,.inline-worker.is-open .join-slash{opacity:0}
+.inline-worker.is-revealed .worker-join,.inline-worker:focus-within .worker-join,.inline-worker.is-open .worker-join{width:48px}
+.inline-worker.is-revealed .join-with,.inline-worker:focus-within .join-with,.inline-worker.is-open .join-with{opacity:1}
+.inline-worker.is-revealed .join-slash,.inline-worker:focus-within .join-slash,.inline-worker.is-open .join-slash{opacity:0}
 .inline-model-summary{display:inline-flex;align-items:baseline;gap:3px;min-width:0;max-width:220px;font-size:.8em;line-height:inherit;letter-spacing:-.3px;color:#9ebfe4;transition:max-width .3s ease,color .2s}
 .inline-model-token{display:inline-flex;align-items:baseline;min-width:0;border-bottom:1px solid #bad6f0;line-height:inherit}
 .inline-model-trigger{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;line-height:inherit;text-align:left}
 .model-comma{flex-shrink:0}.model-more{font:inherit;font-size:.85em;white-space:nowrap;flex-shrink:0;color:#8fb9e3;border:0;background:none;padding:0 2px;align-self:baseline}
-.inline-worker:hover .inline-model-summary,.inline-worker:focus-within .inline-model-summary,.inline-worker.is-open .inline-model-summary{max-width:min(var(--inline-reveal,420px),calc(100vw - 290px));color:#78a7d8}
+.inline-worker.is-revealed .inline-model-summary,.inline-worker:focus-within .inline-model-summary,.inline-worker.is-open .inline-model-summary{max-width:min(var(--inline-reveal,420px),calc(100vw - 290px));color:#78a7d8}
 .inline-worker.remove-preview{border-color:#c5c6c9}.inline-worker.remove-preview>.harness-label .worker-name,.inline-worker.remove-preview>.worker-join,.inline-worker.remove-preview>.inline-model-summary,.inline-worker.remove-preview>.inline-model-summary .model-more{color:#b8b9bc;text-decoration:line-through;text-decoration-thickness:1px}.inline-worker.remove-preview>.inline-model-summary .inline-model-trigger{text-decoration:line-through}.inline-worker.remove-preview>.inline-model-summary .inline-model-token{border-color:#d2d2d4}
 .new-view .execution-choice{color:#64a571;font-size:inherit}.new-view .worker-chooser-compact{margin:0 2px 0 -4px;align-self:baseline}
 .compact-model-menu{width:375px;padding:10px;left:0;max-width:calc(100vw - 48px);border-radius:6px;box-shadow:0 8px 28px #24395415}
@@ -68,7 +68,7 @@
 .compact-model-menu .picker-hint{display:flex;align-items:center;justify-content:space-between;padding:5px 2px 0;margin-top:6px}.compact-model-menu .picker-done{margin:0;font-size:10px;color:#8298af}
 .harness-menu{width:260px;padding:12px}.harness-menu .model-options{max-height:240px}.harness-menu .model-search{font-size:12px}
 @keyframes thinking-reveal{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:800px){.inline-model-summary{max-width:150px}.inline-worker:hover .inline-model-summary,.inline-worker:focus-within .inline-model-summary,.inline-worker.is-open .inline-model-summary{max-width:min(300px,calc(100vw - 290px))}}
+@media(max-width:800px){.inline-model-summary{max-width:150px}.inline-worker.is-revealed .inline-model-summary,.inline-worker:focus-within .inline-model-summary,.inline-worker.is-open .inline-model-summary{max-width:min(300px,calc(100vw - 290px))}}
 @media(prefers-reduced-motion:reduce){.inline-model-summary,.worker-join,.worker-join>span,.worker-name,.worker-name::after,.selection-remove{transition:none}.model-thinking-details{animation:none}}
 
 /* One menu surface for harnesses, models and single-value choices. */
@@ -123,3 +123,8 @@
 .chip-comma{flex:0 0 auto;margin:0 .18em 0 .02em;line-height:inherit;overflow:visible}
 .model-comma{flex:0 0 auto;margin:0 .08em 0 .02em}
 .model-search:focus-visible{outline:none;border-bottom-color:#8baac5}
+
+.thinking-fetching{display:inline-flex;align-items:center;justify-content:flex-end;gap:7px;min-width:86px;font-size:11px;color:#8298af}.thinking-fetching .install-spinner{border-top-color:#8298af}.thinking-retry{border:0;border-bottom:1px solid #bad0e6;background:none;color:#8298af;font-size:11px;padding:0 0 2px}
+
+/* Expanding must never move the hover target onto the next line. */
+.inline-worker{max-width:min(100%,var(--worker-line-space,100%))}.inline-worker .inline-model-summary{flex-shrink:1;min-width:0}
