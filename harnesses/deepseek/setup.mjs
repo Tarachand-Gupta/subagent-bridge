@@ -1,7 +1,6 @@
 import path from 'node:path';
 import {parseDocument} from 'yaml';
 import {readSafe,atomicWrite,entryState,mark,setupName} from '../../lib/setup-files.mjs';
-export const skillPath=ctx=>path.join(ctx.paths.deepseek,'skills',setupName,'SKILL.md');
 const profiles=['web','desktop','headless'],id='harness-bridge-config-mcp';
 const file=(ctx,profile)=>path.join(ctx.paths.deepseek,'profiles',profile,'cordis.patch.yml');
 export const mcpEntry=ctx=>({id,name:'@deepseek-ai/dsh-mcp-client',config:{serverName:setupName,transport:'stdio',command:ctx.command[0],args:ctx.command.slice(1),env:{HARNESS_BRIDGE_HOME:ctx.bridgeHome}}});

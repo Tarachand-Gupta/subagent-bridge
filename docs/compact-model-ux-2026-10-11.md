@@ -58,3 +58,15 @@ Hover reveal measures the current line's remaining space before applying expande
 Validation: all 88 automated tests passed. Native Theme preview verified model-row deselection and prefetched thinking controls appearing immediately when expanded. Test selections were discarded without saving. Main app drafts were preserved.
 
 Native hover checks covered the OpenCode/Kimi group at the right edge of the 1100px preview and at a wider window size. Expanded controls stayed on their original row, with truncation only when space was limited. Both main and Theme desktop bundles built successfully.
+
+## Current setup and window layout (October 12)
+
+This supersedes the Old/New and Skills UI described in the earlier verification history. The connected harness/model editor is the only view. Settings presents native agent connections followed by “Want your agent to manage Harness Bridge?” and MCP installation choices. The configuration MCP carries the complete read/discover/preview/save workflow in its tool descriptions and server instructions. Skill generation and installation have been removed. Existing unchanged managed Codex/OpenCode skills on the development machine were archived under `~/.harness-bridge/retired-skills`; unrelated or modified files are not removed.
+
+Codex status now queries the 0.160.1 `hooks/list` API without starting a model turn or writing trust settings. It matches each expected hook by source file, event and command. All four enabled/trusted definitions produce Connected; modified/untrusted definitions produce Review hooks; disabled definitions are distinguished. A failed query or incomplete match yields Configured with an explicit unknown-approval explanation. Live verification confirmed all four installed hooks were already trusted and enabled. The former Review hooks badge had been unconditional.
+
+The macOS title bar overlays the app header, preserving native traffic lights. Branding and Settings share that bar. Rules have a fixed bottom Save bar; Settings hides it and the top-right action, using a back control above Your setup. The rules count label is removed. Dragging is limited to the header through a scoped Tauri window capability.
+
+Validation: 89 automated tests passed, including MCP install ownership, removed skill API rejection, configuration conflict behavior, and trusted/modified/disabled/unknown hook status. No hook approval was changed.
+
+Native Setup preview confirmed the integrated header, absence of the view toggle and rule count, pinned Save while scrolling, no Save or top-right action in Settings, Back navigation, MCP config preview, and the corrected Connected badge for Codex. The preview delegates backend reads to the main bundle so installation paths match the live setup. Both native bundles built successfully; user rule drafts and hook approvals were unchanged.

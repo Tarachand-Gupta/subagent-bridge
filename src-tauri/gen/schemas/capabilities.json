@@ -1,1 +1,1 @@
-{}
+{"window-controls":{"identifier":"window-controls","description":"Allow dragging the native window from the app header.","local":true,"windows":["main"],"permissions":["core:window:allow-start-dragging"]}}

@@ -113,3 +113,19 @@ test('updated daemon negotiates per-model settings without replacing the worker 
   assert.equal(next.conversationId,first.conversationId);assert.equal(calls,2);
  }finally{await service.close();await fs.rm(dir,{recursive:true,force:true});}
 });
+
+test('hook status distinguishes trusted, modified, disabled and unknown without approving hooks',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'hb-hook-status-'));
+ try{
+  const options={codexHome:dir,version:'0.160.1'};await installCodexIntegration(options);
+  const saved=JSON.parse(await fs.readFile(path.join(dir,'hooks.json')));
+  const hooks=Object.entries(saved.hooks).flatMap(([event,groups])=>groups.flatMap(g=>g.hooks.map(h=>({...h,eventName:event[0].toLowerCase()+event.slice(1),sourcePath:path.join(dir,'hooks.json'),trustStatus:'trusted',enabled:true}))));
+  const readHooks=async()=>({data:[{errors:[],hooks}]});
+  let status=await codexIntegrationStatus({...options,readHooks});assert.equal(status.connectionState,'connected');assert.equal(status.trustRequired,false);
+  hooks[0].trustStatus='modified';status=await codexIntegrationStatus({...options,readHooks});assert.equal(status.trustRequired,true);
+  hooks[0].trustStatus='trusted';hooks[0].enabled=false;status=await codexIntegrationStatus({...options,readHooks});assert.equal(status.connectionState,'hooks-disabled');assert.equal(status.trustRequired,false);
+  hooks[0].enabled=true;hooks[0].command='different command';status=await codexIntegrationStatus({...options,readHooks});assert.equal(status.trustRequired,null);
+  status=await codexIntegrationStatus({...options,readHooks:async()=>{throw new Error('offline');}});assert.equal(status.connectionState,'configured-trust-unknown');
+  assert.deepEqual(JSON.parse(await fs.readFile(path.join(dir,'hooks.json'))),saved);
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});

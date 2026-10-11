@@ -44,7 +44,7 @@ Pi, OpenCode, and managed Codex expose `bridge_routes`, `bridge_delegate`, `brid
 
 ## Configure from another agent
 
-Settings separates native agent connections, **MCP**, and **Skills** into compact tiles. Install only the integrations you want, or copy/preview their configuration first. A blue outline and green check mean the expected configuration is installed; a running session may still need a reload. Information buttons expose versions, file locations, and reload or compatibility details.
+Settings shows native connections and asks: “Want your agent to manage Harness Bridge?” Install the configuration MCP for an agent, or copy/preview its configuration. The MCP descriptions carry the full workflow; no separate skill is needed. A blue outline and green check identify an installed configuration; an existing session may still need a reload. Codex hook trust is queried read-only through its versioned app-server API. Unavailable approval status is shown as Configured, never a false request to review again.
 
 The configuration MCP uses the official MCP SDK over standard input/output:
 
@@ -54,7 +54,7 @@ harness-bridge mcp
 
 Its five tools are `bridge_config_read`, `bridge_config_preview`, `bridge_config_save`, `bridge_agents_list`, and `bridge_models_list`. Read the current configuration and revision, preserve unrelated rules, preview the proposed full configuration, then save with that revision. A concurrent change rejects the save. The desktop editor uses the same revision check and retains an unsaved draft on conflict. Discovery reports installed versions and actual harness model catalogs; a catalog entry does not prove provider access.
 
-The MCP manages configuration and discovery. Background task execution and completion delivery remain the native parent integration's responsibility. Saving through MCP uses the same rule-save and native-connection operation as the app; it never submits a model task or accepts credentials. Generated skills describe this workflow and provide a CLI fallback:
+The MCP manages configuration and discovery. Background task execution and completion delivery remain the native parent integration's responsibility. Saving through MCP uses the same rule-save and native-connection operation as the app; it never submits a model task or accepts credentials. The MCP descriptions include the complete configuration workflow. A CLI fallback is also available:
 
 ```sh
 harness-bridge config read
@@ -62,7 +62,7 @@ harness-bridge config preview --file proposed-rules.json
 harness-bridge config save --file proposed-rules.json --revision REVISION_FROM_READ
 ```
 
-Setup adapters live in each harness's `setup.mjs`. They preserve unrelated configuration, back up changes, refuse symlinked target files and unowned name collisions, and recognize user edits to managed entries. Codex uses its own MCP CLI; Pi uses its native MCP configuration; OpenCode preserves JSONC comments; DeepSeek uses profile patch insertions. The app does not automatically install optional MCPs or skills when saving rules.
+Setup adapters live in each harness's `setup.mjs`. They preserve unrelated configuration, back up changes, refuse symlinked target files and unowned name collisions, and recognize user edits to managed entries. Codex uses its own MCP CLI; Pi uses its native MCP configuration; OpenCode preserves JSONC comments; DeepSeek uses profile patch insertions. The app does not automatically install optional MCPs when saving rules.
 
 ## Worker transport and discovery
 

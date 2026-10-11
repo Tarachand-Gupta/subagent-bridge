@@ -1,6 +1,7 @@
 import {promises as fs} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {readHookStatus} from './v0_160/hook-status.mjs';
 import {detect,root,home} from '../../lib/core.mjs';
 const marker='Harness Bridge native session';
 const quote=s=>"'"+String(s).replaceAll("'","'\\''")+"'";
@@ -28,5 +29,21 @@ export async function installCodexIntegration(options={}){
 export async function codexIntegrationStatus(options={}){
  let value;try{value=JSON.parse(await fs.readFile(target(options),'utf8'));}catch{}
  const expected=generated(options);const current=Object.entries(expected).every(([event,groups])=>groups.every(g=>value?.hooks?.[event]?.some(actual=>JSON.stringify(actual)===JSON.stringify(g))));
- return {installed:!!value&&Object.values(value.hooks||{}).some(groups=>groups.some(g=>g.hooks?.some(ours))),current,mode:'native',approvalRequired:true,trustRequired:true,connectionState:current?'configured-review-required':'not-configured',message:'Native Codex hooks: review and trust Harness Bridge in /hooks once, then start a new chat or resume. Active turns receive completion; idle chats receive it on their next turn. Saved rules refresh each turn. Managed parent mode remains available.'};
+ const installed=!!value&&Object.values(value.hooks||{}).some(groups=>groups.some(g=>g.hooks?.some(ours)));
+ let trustRequired=null,hooksDisabled=false,hookTrust='unknown';
+ if(current&&(options.readHooks||options.executable)&&(!options.version||String(options.version).replace(/^codex-cli\s+/,'')==='0.160.1')){
+  try{
+   const response=await (options.readHooks||readHookStatus)({...options,codexHome:path.dirname(target(options)),cwd:options.cwd||path.dirname(target(options))});
+   const entries=response.data||[],hooks=entries.flatMap(entry=>entry.hooks||[]);
+   const expectedHooks=Object.entries(expected).flatMap(([event,groups])=>groups.flatMap(g=>g.hooks.map(h=>({event:event[0].toLowerCase()+event.slice(1),command:h.command}))));
+   const matched=expectedHooks.map(wanted=>hooks.find(h=>h.sourcePath===target(options)&&h.eventName===wanted.event&&h.command===wanted.command&&h.statusMessage===marker));
+   if(entries.length&&entries.every(e=>!e.errors?.length)&&matched.every(Boolean)){
+    trustRequired=matched.some(h=>!['trusted','managed'].includes(h.trustStatus));hooksDisabled=matched.some(h=>!h.enabled);
+    hookTrust=trustRequired?'review-required':'trusted';
+   }
+  }catch{} // Unknown is distinct from an actual request to review again.
+ }
+ const connectionState=!current?'not-configured':trustRequired===true?'configured-review-required':hooksDisabled?'hooks-disabled':trustRequired===false?'connected':'configured-trust-unknown';
+ const message=!current?'Native Codex integration needs installation or update.':trustRequired===true?'Review the current Harness Bridge definitions in Codex /hooks.':hooksDisabled?'Harness Bridge hooks are trusted but disabled. Enable them in Codex /hooks.':trustRequired===false?'All four Harness Bridge hooks are enabled and trusted. Active turns receive completion; idle chats receive it on their next turn. Saved rules refresh each turn.':'Hooks are configured. Codex approval status could not be verified; refresh to check again. No new approval requirement has been detected.';
+ return {installed,current,mode:'native',approvalRequired:trustRequired,trustRequired,hooksDisabled,hookTrust,connectionState,message};
 }

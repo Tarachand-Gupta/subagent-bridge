@@ -4,9 +4,8 @@ const $=s=>document.querySelector(s),names={codex:'Codex',claude:'Claude Code',p
 const modelProbes=new Map();
 const catalogs=new Map(),probing=new Set(),cards=new Map(),installing=new Set();let setupStatus=null,setupLoading=false,setupError='',setupRevision=0;let baseRevision;let agents=[],config={version:1,routes:[]},loaded=false,dirty=false,busy=false,connections={};
 let setupCheckedAt=null;
-try{const cached=JSON.parse(localStorage.getItem('bridge-setup-v1')||'null');if(cached?.status?.mcp?.entries&&cached?.status?.skills?.entries){setupStatus=cached.status;setupCheckedAt=cached.checkedAt;}}catch{}
+try{const cached=JSON.parse(localStorage.getItem('bridge-setup-v1')||'null');if(cached?.status?.mcp?.entries){setupStatus=cached.status;setupCheckedAt=cached.checkedAt;}}catch{}
 function rememberSetup(){setupCheckedAt=new Date().toISOString();try{localStorage.setItem('bridge-setup-v1',JSON.stringify({status:setupStatus,checkedAt:setupCheckedAt}));}catch{}}
-let viewMode='new';try{viewMode=localStorage.getItem('bridge-rule-view')==='old'?'old':'new';}catch{}
 const native=()=>window.__TAURI__?.core?.invoke;
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 function notice(text,error=false){$('#notice').textContent=text;$('#notice').hidden=!text;$('#notice').classList.toggle('error',error);}
@@ -14,7 +13,7 @@ async function api(path,body){const invoke=native();if(invoke){let result=await 
 function normalize(r){r.parents=Array.isArray(r.parents)?r.parents:r.parent&&r.parent!=='*'?[r.parent]:[];r.workers=Array.isArray(r.workers)?r.workers:r.worker&&r.worker!=='auto'?[r.worker]:[];r.models=Array.isArray(r.models)?r.models:r.model&&r.workers.length===1?[{worker:r.workers[0],id:r.model}]:[];r.reasoning=r.reasoning||'';r.reasoningByWorker=r.reasoningByWorker&&typeof r.reasoningByWorker==='object'?r.reasoningByWorker:{};r.task=typeof r.task==='string'?r.task:'Auto';r.usage=r.usage||'can';sync(r);return r;}
 function sync(r){r.parent=r.parents.length===1?r.parents[0]:'*';r.worker=r.workers.length===1?r.workers[0]:'auto';r.model=r.models.length===1?r.models[0].id:'';}
 function changed(r){if(r){sync(r);if(r.enabled&&!ruleReadiness(r,agents,catalogs).valid)r.enabled=false;}dirty=true;controls();}
-function controls(){$('#save-only').disabled=!loaded||busy;$('#save-only').textContent='Save rules';$('#add').disabled=false;$('#save-status').textContent=busy?'Saving…':!loaded?'Waiting for connection':dirty?'Unsaved changes':'Rules saved · connections in Settings';$('#rule-count').textContent=config.routes.length;}
+function controls(){$('#save-only').disabled=!loaded||busy;$('#save-only').textContent='Save rules';$('#add').disabled=false;$('#save-status').textContent=busy?'Saving…':!loaded?'Waiting for connection':dirty?'Unsaved changes':'Rules saved · connections in Settings';}
 function infoButton(label,text){
  const wrap=el('span','info-control'),button=el('button','info-button','i'),tip=el('span','info-tooltip',text);button.type='button';button.setAttribute('aria-label',label);tip.id=`tip-${crypto.randomUUID()}`;tip.setAttribute('role','tooltip');button.setAttribute('aria-describedby',tip.id);button.setAttribute('aria-expanded','false');wrap.append(button,tip);
  function place(){tip.style.left='0px';tip.style.right='auto';const bounds=tip.getBoundingClientRect();if(bounds.right>window.innerWidth-18)tip.style.left=`${window.innerWidth-18-bounds.right}px`;}
@@ -23,7 +22,6 @@ function infoButton(label,text){
 function connectionText(){
  $('#agent-section-info').replaceChildren(infoButton('How agent connections work','Each connected parent uses its own project folder. Saved rules refresh each turn after its integration is loaded. Followups retain the same worker conversation; messages sent while busy queue for its next turn. Click a model count to refresh discovery.'));
  $('#mcp-section-info').replaceChildren(infoButton('About MCP setup','Install Bridge’s MCP configuration tools for a supported harness, or copy the configuration for a manual setup. MCP configuration access is separate from native task delegation.'));
- $('#skills-section-info').replaceChildren(infoButton('About skill setup','Install the Bridge skill in the selected harness’s supported skill directory. It explains how to inspect and update shared rules, plus how native delegation works. A skill does not add model access or replace the native integration.'));
 }
 function select(label,entries,value,callback){
  const wrap=el('span','themed-select'),button=el('button','select-trigger'),popup=el('div','select-menu');let choices=[],selected=value;
@@ -208,8 +206,7 @@ function workerEditor(r,id,index,updated,chooseWorkers){
  join.setAttribute('aria-hidden','true');join.append(slash,withWord);popup.append(search,options,hint);wrap.append(harnessLabel,join,summary,harnessMenu,popup);wrap.closeEditor=close;wrap.closeThinking=closeThinking;wrap.positionThinking=position;refresh();return{element:wrap,refresh};
 }
 function renderRules(){
- const root=$('#routes');root.replaceChildren();cards.clear();$('#rules-panel').classList.toggle('new-view',viewMode==='new');
- for(const button of document.querySelectorAll('[data-view]'))button.setAttribute('aria-pressed',String(button.dataset.view===viewMode));
+ const root=$('#routes');root.replaceChildren();cards.clear();
  if(!config.routes.length){root.append(el('div','empty','No rules yet. Add one to connect your agents.'));controls();return;}
  config.routes.forEach((r,i)=>{
   const card=el('article',`rule ${r.enabled===false?'off':''}`);card.dataset.id=r.id;
@@ -221,43 +218,39 @@ function renderRules(){
   const worker=multiPicker({label:`Worker harnesses for rule ${i+1}`,auto:'any available harness',entries:agentEntries,values:()=>r.workers,choose:(values,{removed}={})=>{
    if(removed){r.models=r.models.filter(m=>m.worker!==removed);delete r.reasoningByWorker[removed];}r.workers=values;r.models=r.models.filter(m=>!values.length||values.includes(m.worker));if(values.length)r.reasoningByWorker=Object.fromEntries(Object.entries(r.reasoningByWorker||{}).filter(([id])=>values.includes(id)));changed(r);renderWorkerEditors();refresh();ensureCatalogs(r);
   }});
-  const model=multiPicker({label:`Models for rule ${i+1}`,auto:'its default model',entries:()=>modelEntries(r),values:()=>r.models.map(modelKey),choose:values=>{r.models=values.map(key=>{const[worker,id]=JSON.parse(key);return r.models.find(m=>m.worker===worker&&m.id===id)||{worker,id};});changed(r);refresh();},onOpen:()=>ensureCatalogs(r),models:true});
   const taskValue=r.task==='Auto'?'Auto':presets.includes(r.task)?r.task:'Custom';
   sentence.append(word('When'),parent.element,word('needs'),select(`Task type for rule ${i+1}`,[['Auto','any task'],...presets.map(p=>[p,p]),['Custom','Custom task…']],taskValue,value=>{r.task=value==='Custom'?'':value;changed(r);renderRules();}));
   if(taskValue==='Custom'){const custom=el('input','custom-task');custom.placeholder='Describe the task';custom.value=r.task;custom.setAttribute('aria-label',`Custom task for rule ${i+1}`);custom.addEventListener('input',()=>{r.task=custom.value;changed(r);refresh();});sentence.append(custom);}
-  const reasoning=select(`Thinking level for rule ${i+1}`,[],'',value=>{if(value==='__per_harness__')return;r.reasoning=value;r.reasoningByWorker={};r.models=r.models.map(({reasoning,...m})=>m);changed(r);refresh();});
   const usage=select(`Delegation policy for rule ${i+1}`,[['can','can use'],['should','should use']],r.usage,value=>{r.usage=value;changed(r);refresh();});usage.classList.add('usage-select');sentence.append(usage);
   const workerArea=el('span','worker-area'),editors=[],editorMap=new Map();
   function renderWorkerEditors(){
-   if(viewMode!=='new')return;const focused=document.activeElement;editors.length=0;for(const node of [...workerArea.childNodes])if(node!==worker.element)node.remove();if(worker.element.parentNode!==workerArea)workerArea.append(worker.element);
+   const focused=document.activeElement;editors.length=0;for(const node of [...workerArea.childNodes])if(node!==worker.element)node.remove();if(worker.element.parentNode!==workerArea)workerArea.append(worker.element);
    if(!r.workers.length)worker.element.classList.remove('worker-chooser-compact');else worker.element.classList.add('worker-chooser-compact');
    for(const[idIndex,id]of (r.workers.length?r.workers:[...new Set(r.models.map(m=>m.worker))]).entries()){if(idIndex)workerArea.insertBefore(word('and'),worker.element);const editor=editorMap.get(id)||workerEditor(r,id,i,refresh,values=>{r.workers=values;r.models=r.models.filter(m=>!values.length||values.includes(m.worker));if(values.length)r.reasoningByWorker=Object.fromEntries(Object.entries(r.reasoningByWorker||{}).filter(([worker])=>values.includes(worker)));changed(r);renderWorkerEditors();refresh();ensureCatalogs(r);});editorMap.set(id,editor);editors.push(editor);workerArea.insertBefore(editor.element,worker.element);}if(focused?.isConnected)focused.focus({preventScroll:true});
   }
-  if(viewMode==='new'){
+  {
    const execution=select(`Execution harness for rule ${i+1}`,[['respective','Their respective'],['parent','Parent harness · not supported',true]],'respective',()=>{});execution.classList.add('execution-choice');execution.title='Each model runs inside its selected harness, using that harness’s provider configuration. Parent-harness execution is not yet supported.';
    sentence.append(workerArea,word('models in'),execution,word('harnesses.'));renderWorkerEditors();
   }
-  else sentence.append(worker.element,word('using'),model.element,word('with'),reasoning,word('thinking.'));
   function refresh(){
-   parent.refresh();worker.refresh();model.refresh();for(const editor of editors)editor.refresh();
-   const opts=thinking(r),ids=workerIds(r),effective=ids.flatMap(id=>{const ms=r.models.filter(m=>m.worker===id);return ms.length?ms.map(m=>effectiveReasoning(r,id,m.id)):[effectiveReasoning(r,id)];}),mixed=new Set(effective).size>1,current=effective.length?effective[0]:r.reasoning||'';
-   reasoningOptions(reasoning,opts,current,{mixed});ensureThinkingChecks(r);
+   parent.refresh();worker.refresh();for(const editor of editors)editor.refresh();
+   ensureThinkingChecks(r);
    const result=ruleReadiness(r,agents,catalogs);if(r.enabled&&!result.valid&&!result.pending){r.enabled=false;changed(r);}
    toggle.checked=r.enabled;toggle.disabled=card.classList.contains('deletion-pending')||(!r.enabled&&!result.valid);toggle.title=result.valid?'Enable or disable this rule':result.message;card.classList.toggle('off',!r.enabled);
    validation.textContent=result.valid?(r.enabled?'':'Off'):result.message;validation.classList.toggle('invalid',!result.valid&&!result.pending);
 
   }
-  parent.element.classList.add('parent-choice');worker.element.classList.add('worker-choice');model.element.classList.add('model-choice');const revealModel=()=>{const bounds=model.element.getBoundingClientRect();model.element.style.setProperty('--model-reveal',`${Math.max(bounds.width,sentence.getBoundingClientRect().right-bounds.left-8)}px`);};model.element.addEventListener('pointerenter',revealModel);model.element.addEventListener('focusin',revealModel);reasoning.classList.add('thinking-choice');card.append(head,sentence);root.append(card);cards.set(r.id,{refresh,focusWorker:()=>workerArea.querySelector('button')?.focus({preventScroll:true})});refresh();
+  parent.element.classList.add('parent-choice');worker.element.classList.add('worker-choice');card.append(head,sentence);root.append(card);cards.set(r.id,{refresh,focusWorker:()=>workerArea.querySelector('button')?.focus({preventScroll:true})});refresh();
  });controls();
 }
 function renderAgents(){
  const root=$('#agents');root.replaceChildren();$('#agent-count').textContent=agents.filter(agent=>agent.installed).length;
  for(const agent of agents){
   const c=catalogs.get(agent.id),connection=connections[agent.id]||{},tile=el('article','detected-tile'+(!agent.installed?' not-detected':''));
-  const state=!agent.installed?'Not found':connection.current&&connection.trustRequired?'Review hooks':connection.current?'Connected':connection.mode==='managed'?'Managed sessions':connection.mode==='unsupported'?'Setup unavailable':'Not connected';
-  const details=[agent.installed?`Installed version: ${agent.version||'unknown'}`:'This harness was not detected.',`Worker: ${agent.acpReady?'ACP endpoint available':agent.installed?'ACP adapter needed':'not installed'}`,`Parent: ${state.toLowerCase()}`,connection.message,agent.id==='codex'?'In Codex: /hooks → review Harness Bridge.':null,agent.compatibility?.supported&&!agent.compatibility?.verified?'This version family is supported; this exact release has not been live-tested.':null,c?.error,c?.currentModel?`Current model: ${c.models.find(model=>model.id===c.currentModel)?.name||c.currentModel}`:null].filter(Boolean).join('\n');
+  const state=!agent.installed?'Not found':connection.current&&connection.trustRequired===true?'Review hooks':connection.current&&connection.hooksDisabled?'Hooks disabled':connection.current&&connection.trustRequired===null?'Configured':connection.current?'Connected':connection.mode==='managed'?'Managed sessions':connection.mode==='unsupported'?'Setup unavailable':'Not connected';
+  const details=[agent.installed?`Installed version: ${agent.version||'unknown'}`:'This harness was not detected.',`Worker: ${agent.acpReady?'ACP endpoint available':agent.installed?'ACP adapter needed':'not installed'}`,`Parent: ${state.toLowerCase()}`,connection.message,agent.compatibility?.supported&&!agent.compatibility?.verified?'This version family is supported; this exact release has not been live-tested.':null,c?.error,c?.currentModel?`Current model: ${c.models.find(model=>model.id===c.currentModel)?.name||c.currentModel}`:null].filter(Boolean).join('\n');
   const top=el('div','detected-top');top.append(el('strong','',agent.name||names[agent.id]),infoButton(`${agent.name||names[agent.id]} connection details`,details));
-  const status=el('span','detected-status'+(connection.current&&!connection.trustRequired?' connected':''),state),discover=el('button','catalog-button',probing.has(agent.id)?'Discovering…':c?.models.length?`${c.models.length} models ↻`:'Models ↻');discover.type='button';discover.disabled=!agent.installed||probing.has(agent.id);discover.setAttribute('aria-label',`Discover models for ${agent.name||names[agent.id]}`);discover.addEventListener('click',()=>probe(agent.id));
+  const status=el('span','detected-status'+(connection.current&&connection.trustRequired!==null&&!connection.trustRequired&&!connection.hooksDisabled?' connected':''),state),discover=el('button','catalog-button',probing.has(agent.id)?'Discovering…':c?.models.length?`${c.models.length} models ↻`:'Models ↻');discover.type='button';discover.disabled=!agent.installed||probing.has(agent.id);discover.setAttribute('aria-label',`Discover models for ${agent.name||names[agent.id]}`);discover.addEventListener('click',()=>probe(agent.id));
   const bottom=el('div','detected-bottom');bottom.append(status,discover);tile.append(top,bottom);root.append(tile);
  }
 }
@@ -269,33 +262,33 @@ async function loadSetup(){
  finally{if(revision===setupRevision){setupLoading=false;renderSetup();}}
 }
 function configText(entry){return typeof entry.configText==='string'?entry.configText:entry.configText?JSON.stringify(entry.configText,null,2):'';}
-function previewConfig(entry,kind='mcp'){const text=configText(entry);if(!text)return;const preview=$('#config-preview');preview.hidden=false;preview.open=true;preview.querySelector('summary').textContent=`${entry.name} · ${kind==='skills'?'skill':'config'}`;$('#config-text').value=text;}
-async function copyConfig(entry,kind='mcp'){
+function previewConfig(entry){const text=configText(entry);if(!text)return;const preview=$('#config-preview');preview.hidden=false;preview.open=true;preview.querySelector('summary').textContent=`${entry.name} · config`;$('#config-text').value=text;}
+async function copyConfig(entry){
  const text=configText(entry);if(!text)return;
- try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText(text);setupFeedback(`${entry.name} ${kind==='skills'?'skill':'config'} copied.`);}
- catch{previewConfig(entry,kind);const input=$('#config-text');input.focus();input.select();setupFeedback(`Clipboard access is unavailable. The config is selected below; press ${/Mac/i.test(navigator.platform)?'⌘C':'Ctrl+C'} to copy it.`,true);}
+ try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText(text);setupFeedback(`${entry.name} config copied.`);}
+ catch{previewConfig(entry);const input=$('#config-text');input.focus();input.select();setupFeedback(`Clipboard access is unavailable. The config is selected below; press ${/Mac/i.test(navigator.platform)?'⌘C':'Ctrl+C'} to copy it.`,true);}
 }
 function renderSetup(){
  const status=$('#setup-freshness');status.textContent=setupLoading?(setupStatus?'Refreshing · showing last checked setup':'Checking setup…'):setupError?'Could not refresh · showing last checked setup':setupCheckedAt?'Checked '+new Date(setupCheckedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
- const actions=$('#skill-actions');actions.replaceChildren();const skill=setupStatus?.skills?.entries.find(entry=>configText(entry));if(skill){const common={...skill,name:'Harness Bridge'},copy=el('button','setup-copy','Copy skill'),preview=el('button','setup-preview','Preview');copy.type=preview.type='button';copy.addEventListener('click',()=>copyConfig(common,'skills'));preview.addEventListener('click',()=>previewConfig(common,'skills'));actions.append(copy,preview);}
- for(const kind of ['mcp','skills']){
+ {
+  const kind='mcp';
   const root=$(`#setup-${kind}`);root.replaceChildren();const entries=setupStatus?.[kind]?.entries||[];
-  if(!entries.length){root.append(el('span','setup-empty',setupError|| (setupLoading?'Checking setup…':'No setup options available.')));continue;}
+  if(!entries.length){root.append(el('span','setup-empty',setupError|| (setupLoading?'Checking setup…':'No setup options available.')));return;}
   for(const entry of entries){
    const pending=installing.has(`${kind}:${entry.id}`),tile=el('div','setup-tile'+(entry.installed?' installed':'')+(!entry.available&&!entry.installed?' unavailable':'')),button=el('button','setup-install'),name=entry.name||names[entry.id]||entry.id;
-   button.type='button';const update=entry.installed&&entry.current===false;button.disabled=!entry.available||(entry.installed&&!update)||installing.size>0||setupLoading;button.setAttribute('aria-label',pending?`Installing ${name} ${kind==='mcp'?'MCP':'skill'}`:update?`Update ${name} ${kind==='mcp'?'MCP':'skill'}`:entry.installed?`${name} ${kind==='mcp'?'MCP':'skill'} installed`:`Install ${kind==='mcp'?'MCP':'skill'} for ${name}`);button.setAttribute('aria-busy',String(pending));
+   button.type='button';const update=entry.installed&&entry.current===false;button.disabled=!entry.available||(entry.installed&&!update)||installing.size>0||setupLoading;button.setAttribute('aria-label',pending?`Installing ${name} MCP`:update?`Update ${name} MCP`:entry.installed?`${name} MCP installed`:`Install MCP for ${name}`);button.setAttribute('aria-busy',String(pending));
    const marker=el('span',pending?'install-spinner':entry.installed?'install-check':'install-plus',pending?'':entry.installed?'✓':entry.available?'+':'—');marker.setAttribute('aria-hidden','true');button.append(el('span','',name),marker);button.addEventListener('click',()=>installSetup(kind,entry));
-   const description=entry.reason||(entry.installed?'Installed.':entry.available?`Install ${kind==='mcp'?'MCP configuration':'Bridge instructions'} for ${name}.`:'Automatic installation is unavailable for this harness.');
+   const description=entry.reason||(entry.installed?'Installed.':entry.available?`Install MCP configuration for ${name}.`:'Automatic installation is unavailable for this harness.');
    const top=el('div','setup-tile-top');button.title=description;tile.title=description;top.append(button);tile.append(top);if(update)button.insertBefore(el('span','setup-update','Update'),marker);
-   if(kind==='mcp'&&configText(entry)){const actions=el('div','setup-copy-actions'),copy=el('button','setup-copy',kind==='skills'?'Copy skill':'Copy config'),preview=el('button','setup-preview','Preview');copy.type=preview.type='button';copy.setAttribute('aria-label',`Copy ${name} ${kind==='skills'?'skill':'MCP config'}`);preview.setAttribute('aria-label',`Preview ${name} ${kind==='skills'?'skill':'MCP config'}`);copy.addEventListener('click',()=>copyConfig(entry,kind));preview.addEventListener('click',()=>previewConfig(entry,kind));actions.append(copy,preview);tile.append(actions);}
+   if(kind==='mcp'&&configText(entry)){const actions=el('div','setup-copy-actions'),copy=el('button','setup-copy','Copy config'),preview=el('button','setup-preview','Preview');copy.type=preview.type='button';copy.setAttribute('aria-label',`Copy ${name} MCP config`);preview.setAttribute('aria-label',`Preview ${name} MCP config`);copy.addEventListener('click',()=>copyConfig(entry));preview.addEventListener('click',()=>previewConfig(entry));actions.append(copy,preview);tile.append(actions);}
    root.append(tile);
   }
  }
  if(setupError)setupFeedback(setupError,true);
 }
 async function installSetup(kind,entry){
- if(installing.size||setupLoading||!entry.available||(entry.installed&&entry.current!==false))return;const key=`${kind}:${entry.id}`;installing.add(key);setupRevision++;setupLoading=false;setupError='';setupFeedback(`Installing ${entry.name} ${kind==='mcp'?'MCP':'skill'}…`);renderSetup();
- try{setupStatus=await api('/api/setup-install',{kind,id:entry.id});rememberSetup();const updated=setupStatus?.[kind]?.entries?.find(item=>item.id===entry.id);setupFeedback(updated?.installed?`${entry.name} ${kind==='mcp'?'MCP':'skill'} installed.`:updated?.reason||`${entry.name} installation was not confirmed.`,!updated?.installed);}
+ if(installing.size||setupLoading||!entry.available||(entry.installed&&entry.current!==false))return;const key=`${kind}:${entry.id}`;installing.add(key);setupRevision++;setupLoading=false;setupError='';setupFeedback(`Installing ${entry.name} MCP…`);renderSetup();
+ try{setupStatus=await api('/api/setup-install',{kind,id:entry.id});rememberSetup();const updated=setupStatus?.[kind]?.entries?.find(item=>item.id===entry.id);setupFeedback(updated?.installed?`${entry.name} MCP installed.`:updated?.reason||`${entry.name} installation was not confirmed.`,!updated?.installed);}
  catch(error){setupFeedback(error.message||'Installation failed.',true);}
  finally{installing.delete(key);renderSetup();}
 }
@@ -316,6 +309,10 @@ async function save(){
  finally{busy=false;controls();}
 }
 $('#load-latest').addEventListener('click',loadLatest);
-for(const button of document.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{viewMode=button.dataset.view;try{localStorage.setItem('bridge-rule-view',viewMode);}catch{}renderRules();});
-$('#settings-toggle').addEventListener('click',()=>{const open=$('#agents-panel').hidden;$('#agents-panel').hidden=!open;$('#rules-panel').hidden=open;$('#settings-toggle').setAttribute('aria-expanded',String(open));$('#settings-toggle').setAttribute('aria-label',open?'Close settings':'Open settings');$('#settings-toggle').querySelector('span').textContent=open?'Back to rules':'Settings';if(open){renderSetup();void loadSetup();}});
+function showSettings(open){
+ $('#agents-panel').hidden=!open;$('#rules-panel').hidden=open;$('#rules-actions').hidden=open;$('#settings-toggle').hidden=open;document.body.classList.toggle('settings-open',open);window.scrollTo(0,0);
+ if(open){renderSetup();void load();}else $('#settings-toggle').focus({preventScroll:true});
+}
+$('#settings-toggle').addEventListener('click',()=>showSettings(true));
+$('#settings-back').addEventListener('click',()=>showSettings(false));
 $('#add').addEventListener('click',()=>{config.routes.push(normalize({id:crypto.randomUUID(),parents:[],workers:[],models:[],reasoning:'',task:'Auto',enabled:false}));changed();renderRules();ensureCatalogs(config.routes.at(-1));});$('#save-only').addEventListener('click',save);$('#refresh').addEventListener('click',load);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const active=[...document.querySelectorAll('.worker-editor')].find(w=>w.querySelector('.model-select-row.expanded'));if(active)active.closeThinking?.();else for(const w of document.querySelectorAll('.worker-editor'))w.closeEditor?.();}});document.addEventListener('scroll',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();},true);window.addEventListener('resize',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();});document.addEventListener('click',e=>{for(const s of document.querySelectorAll('.themed-select'))if(!e.composedPath().includes(s))s.closeSelect?.();for(const tooltip of document.querySelectorAll('.info-control.tip-open'))if(!e.composedPath().includes(tooltip)){tooltip.classList.remove('tip-open');tooltip.querySelector('button').setAttribute('aria-expanded','false');}for(const editor of document.querySelectorAll('.worker-editor'))if(!e.composedPath().includes(editor))editor.closeEditor?.();for(const d of document.querySelectorAll('.combo'))if(!e.composedPath().includes(d))d.closePicker?.();});$('#rules-help').append(infoButton('How rules work','Can use permits delegation; Should use requires it for matching tasks. Multiple harnesses and models are alternatives: the parent chooses one per task. Workers inherit the parent’s folder. Thinking belongs to each model. New rules start off; enable them after validation passes. Validation checks installed harnesses and advertised settings, not provider billing or live model responses.'));renderSetup();load();

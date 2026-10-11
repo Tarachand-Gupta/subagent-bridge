@@ -1,7 +1,6 @@
 import path from 'node:path';
 import {parse,modify,applyEdits} from 'jsonc-parser';
 import {readSafe,atomicWrite,entryState,mark,setupName} from '../../lib/setup-files.mjs';
-export const skillPath=ctx=>path.join(ctx.paths.opencode,'skills',setupName,'SKILL.md');
 export const mcpEntry=ctx=>({type:'local',command:ctx.command,environment:{HARNESS_BRIDGE_HOME:ctx.bridgeHome},enabled:true});
 async function inspect(ctx){
  const plain=path.join(ctx.paths.opencode,'opencode.json'),commented=plain+'c';

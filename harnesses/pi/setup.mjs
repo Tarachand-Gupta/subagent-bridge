@@ -1,6 +1,5 @@
 import path from 'node:path';
 import {readSafe,atomicWrite,entryState,mark,setupName} from '../../lib/setup-files.mjs';
-export const skillPath=ctx=>path.join(ctx.paths.pi,'skills',setupName,'SKILL.md');
 const file=ctx=>path.join(ctx.paths.pi,'mcp.json');
 export const mcpEntry=ctx=>({command:ctx.command[0],args:ctx.command.slice(1),env:{HARNESS_BRIDGE_HOME:ctx.bridgeHome}});
 async function inspect(ctx){const text=await readSafe(file(ctx));const value=text?JSON.parse(text):{};if(!value||Array.isArray(value)||typeof value!=='object'||value.mcpServers&&(typeof value.mcpServers!=='object'||Array.isArray(value.mcpServers)))throw new Error('Pi MCP configuration is not an object');return {value,current:value.mcpServers?.[setupName],expected:mcpEntry(ctx)};}

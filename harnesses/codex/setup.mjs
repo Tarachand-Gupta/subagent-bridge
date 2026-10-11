@@ -1,7 +1,6 @@
 import path from 'node:path';
 import {mkdir} from 'node:fs/promises';
 import {readSafe,atomicWrite,entryState,mark,setupName} from '../../lib/setup-files.mjs';
-export const skillPath=ctx=>path.join(ctx.paths.codex,'skills',setupName,'SKILL.md');
 const file=ctx=>path.join(ctx.paths.codex,'config.toml');
 export const mcpEntry=ctx=>({command:ctx.command[0],args:ctx.command.slice(1),env:{HARNESS_BRIDGE_HOME:ctx.bridgeHome},enabled:true});
 async function current(ctx){if(await readSafe(file(ctx))===null)return undefined;try{const result=await ctx.run(ctx.agent.executable,['mcp','get',setupName,'--json'],{env:{...process.env,CODEX_HOME:ctx.paths.codex}});const value=JSON.parse(result.stdout);return value.transport?{command:value.transport.command,args:value.transport.args||[],env:value.transport.env||{},enabled:value.enabled!==false}:value;}catch(e){if(e.code===1&&/No MCP server named|not found/i.test(e.stderr||''))return undefined;throw new Error('Cannot inspect Codex MCP configuration. Resolve its configuration error before installing.');}}
