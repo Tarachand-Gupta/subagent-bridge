@@ -1,6 +1,5 @@
 import http from 'node:http';
-import {spawn,execFile} from 'node:child_process';
-import {promisify} from 'node:util';
+import {spawn,execFile,shellCommand} from '../../../lib/process.mjs';
 import {createHash,randomBytes} from 'node:crypto';
 import {promises as fs} from 'node:fs';
 import path from 'node:path';
@@ -8,9 +7,8 @@ import {fileURLToPath} from 'node:url';
 import {createParentBridge,ruleGuidance,completionText} from '../../../lib/parent-bridge.mjs';
 import {home,root,which} from '../../../lib/core.mjs';
 const self=fileURLToPath(import.meta.url);
-export async function installedCodexVersion(){const command=await which('codex');if(!command)return null;try{const {stdout}=await promisify(execFile)(command,['--version'],{timeout:5000,windowsHide:true});return stdout.match(/\b(\d+\.\d+\.\d+(?:-[^\s]+)?)\b/)?.[1]||null;}catch{return null;}}
+export async function installedCodexVersion(){const command=await which('codex');if(!command)return null;try{const {stdout}=await execFile(command,['--version'],{timeout:5000,windowsHide:true});return stdout.match(/\b(\d+\.\d+\.\d+(?:-[^\s]+)?)\b/)?.[1]||null;}catch{return null;}}
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
-const quote=s=>"'"+String(s).replaceAll("'","'\\''")+"'";
 const error=reason=>({code:'PARENT_SERVICE_UNAVAILABLE',reason,stage:'parent',retryable:false,outcomeUnknown:true,nextAction:'Inspect the saved job status and workspace before starting another task.'});
 export function sessionDirectory({sessionId,cwd,bridgeHome=home}){
  if(!sessionId||!path.isAbsolute(cwd||''))throw new Error('An exact parent session and absolute working folder are required');
@@ -115,8 +113,8 @@ export async function nativeRequest(options,request,{start=true}={}){
  return post(endpoint,request);
 }
 export function nativeInstructions(options,routes){
- const command=[process.execPath,self,'cli','--session-id',options.sessionId,'--cwd',options.cwd,'--home',options.bridgeHome||home].map(quote).join(' ');
- return ruleGuidance+'\nNative Codex connection: use your shell tool to execute '+command+' --op OP --json JSON_ARGUMENTS. Operations: routes {}; delegate {route,task,worker?,model?}; message {jobId,message}; status {jobId}; cancel {jobId}. Quote JSON as a single shell argument. Reuse the returned jobId for followups. Session identity above is private to this parent; never substitute another session. Hooks deliver completed results during active turns or at Stop. An idle chat is not woken; undelivered results arrive next turn. Current rules: '+JSON.stringify(routes);
+ const command=shellCommand([process.execPath,self,'cli','--session-id',options.sessionId,'--cwd',options.cwd,'--home',options.bridgeHome||home]);
+ return ruleGuidance+'\nNative Codex connection: use your '+(process.platform==='win32'?'PowerShell':'shell')+' tool to execute '+command+(process.platform==='win32'?' --op OP --json-file PATH_TO_UTF8_JSON. Write operation arguments as JSON to a temporary file to preserve native PowerShell quoting.':' --op OP --json JSON_ARGUMENTS.')+' Operations: routes {}; delegate {route,task,worker?,model?}; message {jobId,message}; status {jobId}; cancel {jobId}. Quote JSON as a single shell argument. Reuse the returned jobId for followups. Session identity above is private to this parent; never substitute another session. Hooks deliver completed results during active turns or at Stop. An idle chat is not woken; undelivered results arrive next turn. Current rules: '+JSON.stringify(routes);
 }
 export async function handleNativeHook(input,options={},request=nativeRequest,version=installedCodexVersion){
  if(process.env.HARNESS_BRIDGE_DEPTH||process.env.HARNESS_BRIDGE_MANAGED_PARENT)return {};
@@ -139,16 +137,16 @@ export async function nativeCodexCommand(argv){
  if(await installedCodexVersion()!=='0.160.1')throw new Error('Native connection disabled: resolved Codex CLI is not tested version 0.160.1');
  const values={};for(let i=0;i<argv.length;i++)if(argv[i].startsWith('--'))values[argv[i].slice(2)]=argv[++i];
  const options={sessionId:values['session-id']||values.session,cwd:values.cwd||process.cwd(),bridgeHome:values.home||home};
- return nativeRequest(options,{op:values.op||'routes',args:JSON.parse(values.json||'{}')});
+ return nativeRequest(options,{op:values.op||'routes',args:JSON.parse(values['json-file']?await fs.readFile(values['json-file'],'utf8'):values.json||'{}')});
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===self){
  const mode=process.argv[2];
  try{
   if(mode==='serve'){const service=await createNativeService(JSON.parse(process.argv[3]));for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>void service.close());}
   else if(mode==='cli')console.log(JSON.stringify(await nativeCodexCommand(process.argv.slice(3))));
-  else if(mode==='hook'){
+  else if(mode==='hook'||mode==='hook-base64'){
    let input='';for await(const chunk of process.stdin){input+=chunk;if(input.length>1000000)throw new Error('Hook input too large');}
-   const options=JSON.parse(process.argv[3]||'{}');console.log(JSON.stringify(await handleNativeHook(JSON.parse(input),options)));
+   const options=JSON.parse(mode==='hook-base64'?Buffer.from(process.argv[3]||'e30=','base64').toString('utf8'):process.argv[3]||'{}');console.log(JSON.stringify(await handleNativeHook(JSON.parse(input),options)));
   }
- }catch(e){console.log(JSON.stringify(mode==='hook'?{systemMessage:'Harness Bridge connection failed: '+e.message}:{ok:false,error:e.message}));process.exitCode=mode==='hook'?0:1;}
+ }catch(e){console.log(JSON.stringify(mode?.startsWith('hook')?{systemMessage:'Harness Bridge connection failed: '+e.message}:{ok:false,error:e.message}));process.exitCode=mode?.startsWith('hook')?0:1;}
 }

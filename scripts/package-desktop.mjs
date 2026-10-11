@@ -1,0 +1,19 @@
+import {spawnSync} from '../lib/process.mjs';
+import {mkdtemp,cp,symlink,rm,mkdir,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+function run(command,args){const result=spawnSync(command,args,{cwd:root,stdio:'inherit'});if(result.error)throw result.error;if(result.status!==0)throw new Error(`${command} exited ${result.status}`);}
+const npm=process.platform==='win32'?'npm.cmd':'npm';
+run(npm,['exec','--','tauri','build','--ci',...(process.platform==='darwin'?['--bundles','app']:[])]);
+if(process.platform==='darwin'){
+ const config=JSON.parse(await readFile(path.join(root,'src-tauri/tauri.conf.json'),'utf8'));
+ const stage=await mkdtemp(path.join(tmpdir(),'harness-bridge-dmg-'));
+ try{
+  await cp(path.join(root,'src-tauri/target/release/bundle/macos/Harness Bridge.app'),path.join(stage,'Harness Bridge.app'),{recursive:true});
+  await symlink('/Applications',path.join(stage,'Applications'));
+  const output=path.join(root,'src-tauri/target/release/bundle/dmg');await mkdir(output,{recursive:true});
+  run('hdiutil',['create','-volname','Harness Bridge','-srcfolder',stage,'-ov','-format','UDZO',path.join(output,`Harness Bridge_${config.version}_${process.arch}.dmg`)]);
+ }finally{await rm(stage,{recursive:true,force:true});}
+}

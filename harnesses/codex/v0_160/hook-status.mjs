@@ -1,4 +1,4 @@
-import {spawn} from 'node:child_process';
+import {spawn} from '../../../lib/process.mjs';
 import {createInterface} from 'node:readline';
 
 // Read-only discovery: no thread, turn, hook approval, or configuration mutation.

@@ -1,4 +1,4 @@
-import {spawn} from 'node:child_process';
+import {spawn} from '../../../lib/process.mjs';
 import {createInterface} from 'node:readline';
 import {createParentBridge,ruleGuidance,completionText,toolSchemas} from '../../../lib/parent-bridge.mjs';
 

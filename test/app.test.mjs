@@ -67,6 +67,7 @@ test('local UI serves and rejects forged writes and foreign origins',async()=>{
  const server=await serve(0);const url=`http://127.0.0.1:${server.address().port}`;
  try{
   const html=await(await fetch(url)).text();assert.ok(html.includes('Who should do what?'));assert.ok(!html.includes('__BRIDGE_TOKEN__'));
+  assert.equal((await fetch(url+'/rule-prompt.mjs')).status,200);assert.equal((await fetch(url+'/mark.svg')).headers.get('content-type'),'image/svg+xml; charset=utf-8');
   const token=html.match(/name="bridge-token" content="([^"]+)"/)[1];
   const body=JSON.stringify({routes:[{...route,enabled:false}],workspace:dir});
   assert.equal((await fetch(url+'/api/config',{method:'POST',headers:{'content-type':'application/json'},body})).status,403);

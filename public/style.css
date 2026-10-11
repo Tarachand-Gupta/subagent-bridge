@@ -133,3 +133,23 @@
 
 /* One native toolbar, with persistent editor actions and a quiet settings page. */
 .app{padding-top:64px;padding-bottom:96px}header{position:fixed;z-index:55;top:0;left:0;right:0;height:64px;padding:0 28px 0 108px;background:#fbfaf8;user-select:none}.section-intro{margin-top:42px}.action-bar{position:fixed;z-index:25;left:0;right:0;bottom:0;margin:0;padding:18px max(52px,calc((100vw - 1096px)/2));background:#fbfaf8;border-top:1px solid var(--line)}.settings-open .app{padding-bottom:32px}.settings-back{display:inline-flex;align-items:center;gap:9px;border:0;background:none;padding:0;margin:0 0 18px;color:#969399;font-size:11px;line-height:1.6}.settings-back span{font-size:18px;line-height:1}.settings-back:hover{color:#4e494f}.setup-heading #refresh{border:0;width:22px;height:22px;font-size:18px;color:#a4a1a8}.settings-open #save-conflict{display:none}.settings-intro{justify-content:flex-start}@media(max-width:800px){header{height:64px}.action-bar{padding:16px 30px}.section-intro{margin-top:30px}}@media(max-width:560px){.action-bar{padding:14px 22px}}
+
+/* Per-rule preview overlays the sentence without changing its layout footprint. */
+.rule-pane{position:relative}
+.rule-pane.show-prompt>.sentence{visibility:hidden;pointer-events:none}
+.rule-prompt{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;padding:0 10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;color:#514d55;font-size:15px;user-select:text;scrollbar-width:thin}
+.prompt-button{border:0;background:none;padding:2px 4px;min-width:28px;color:#a8a1ad;font-size:17px;line-height:1.1;letter-spacing:-1px;font-weight:500;border-radius:4px}
+.prompt-button:hover,.prompt-button[aria-pressed=true]{color:#8260bb;background:#ece7f2}
+body:not(.macos) header{padding-left:28px}
+
+/* A quiet two-tone native frame, with one shared toolbar baseline. */
+body{background:#f1efeb}
+header{background:#f1efeb;border-bottom:1px solid #e5e1dc;box-shadow:none}
+.identity,.header-tools{display:flex;align-items:center}
+.identity{gap:10px}.identity strong{font-size:16px;font-weight:650;letter-spacing:-.35px;color:#454148}
+header .mark{display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:#e9e1f3;border-radius:8px}
+header .mark img{width:28px;height:28px;pointer-events:none}
+.settings-button{height:34px;display:flex;align-items:center;gap:8px;color:#65606a}
+#rules-panel,#agents-panel{background:#fbfaf8;border:1px solid #e8e4df;border-radius:20px;margin-top:22px;padding:28px 32px;min-height:calc(100vh - 190px)}
+.action-bar{background:#f1efeb;border-top-color:#e5e1dc}
+@media(max-width:800px){#rules-panel,#agents-panel{padding:24px 20px}.identity strong{font-size:15px}}

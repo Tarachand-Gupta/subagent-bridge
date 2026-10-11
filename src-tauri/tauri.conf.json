@@ -16,13 +16,7 @@
         "height": 700,
         "minWidth": 760,
         "minHeight": 520,
-        "center": true,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "trafficLightPosition": {
-          "x": 18,
-          "y": 23
-        }
+        "center": true
       }
     ],
     "security": {
@@ -31,9 +25,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "app"
-    ],
+    "targets": "all",
     "resources": {
       "../lib/": "backend/lib/",
       "../bin.mjs": "backend/bin.mjs",
@@ -41,10 +33,18 @@
       "../package.json": "backend/package.json",
       "../.runtime/node_modules/": "backend/node_modules/",
       "../harnesses/": "backend/harnesses/",
-      "../public/rule-validation.mjs": "backend/public/rule-validation.mjs"
+      "../public/rule-validation.mjs": "backend/public/rule-validation.mjs",
+      "../public/rule-prompt.mjs": "backend/public/rule-prompt.mjs"
     },
     "macOS": {
       "minimumSystemVersion": "12.0"
-    }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
   }
 }

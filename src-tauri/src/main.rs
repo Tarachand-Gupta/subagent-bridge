@@ -5,7 +5,7 @@ use tauri_plugin_dialog::DialogExt;
 
 fn environment() -> (PathBuf, std::ffi::OsString) {
     let mut dirs: Vec<PathBuf> = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
-    if let Some(home) = std::env::var_os("HOME") {
+    if let Some(home) = std::env::var_os("HOME").or_else(||std::env::var_os("USERPROFILE")) {
         let home = PathBuf::from(home);
         dirs.insert(0,home.join(".local/bin"));
         dirs.push(home.join(".volta/bin"));
@@ -14,7 +14,22 @@ fn environment() -> (PathBuf, std::ffi::OsString) {
             versions.sort(); versions.reverse(); dirs.extend(versions);
         }
     }
-    dirs.extend([PathBuf::from("/opt/homebrew/bin"), PathBuf::from("/usr/local/bin"), PathBuf::from("/usr/bin"), PathBuf::from("/bin")]);
+    if !cfg!(windows) { dirs.extend([PathBuf::from("/opt/homebrew/bin"), PathBuf::from("/usr/local/bin"), PathBuf::from("/usr/bin"), PathBuf::from("/bin")]); }
+    if cfg!(windows) {
+        for key in ["APPDATA", "LOCALAPPDATA", "ProgramFiles", "NVM_SYMLINK", "VOLTA_HOME"] {
+            if let Some(value)=std::env::var_os(key) {
+                let base=PathBuf::from(value);
+                match key {
+                    "APPDATA" => dirs.push(base.join("npm")),
+                    "LOCALAPPDATA" => { dirs.push(base.join("Programs/nodejs")); dirs.push(base.join("Volta/bin")); },
+                    "ProgramFiles" => dirs.push(base.join("nodejs")),
+                    "VOLTA_HOME" => dirs.push(base.join("bin")),
+                    _ => dirs.push(base),
+                }
+            }
+        }
+    }
+    dirs.retain(|p| !p.as_os_str().is_empty());
     let node_name = if cfg!(windows) { "node.exe" } else { "node" };
     let node = std::env::var_os("HARNESS_BRIDGE_NODE").map(PathBuf::from)
         .or_else(|| dirs.iter().map(|d| d.join(node_name)).find(|p| p.is_file()))
@@ -28,9 +43,13 @@ async fn bridge(app: tauri::AppHandle, method: String, path: String, body: Optio
     let script = if resource.exists() {resource} else {PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../desktop-bridge.mjs")};
     tauri::async_runtime::spawn_blocking(move || {
         let (node, paths) = environment();
-        let mut child = Command::new(node).arg(script).env("PATH",paths)
-            .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
-            .spawn().map_err(|e|format!("Cannot start Node.js. Install Node 22+ or set HARNESS_BRIDGE_NODE. {e}"))?;
+        let mut command = Command::new(node);
+        command.arg(script).env("PATH",paths).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+        #[cfg(windows)] {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        let mut child = command.spawn().map_err(|e|format!("Cannot start Node.js. Install Node 22+ or set HARNESS_BRIDGE_NODE. {e}"))?;
         let data=serde_json::json!({"method":method,"path":path,"body":body});
         child.stdin.take().ok_or("Missing child input")?.write_all(data.to_string().as_bytes()).map_err(|e|e.to_string())?;
         let output=child.wait_with_output().map_err(|e|e.to_string())?;

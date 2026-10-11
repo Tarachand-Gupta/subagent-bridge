@@ -1,10 +1,10 @@
+import {hookCommand} from '../../lib/process.mjs';
 import {promises as fs} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {readHookStatus} from './v0_160/hook-status.mjs';
 import {detect,root,home} from '../../lib/core.mjs';
 const marker='Harness Bridge native session';
-const quote=s=>"'"+String(s).replaceAll("'","'\\''")+"'";
 export async function runCodexParent(options){
  const agent=(await detect()).find(a=>a.id==='codex');
  if(!agent?.compatibility.supported)throw new Error('Installed Codex version has no supported parent compatibility handler');
@@ -12,7 +12,7 @@ export async function runCodexParent(options){
 }
 function target({codexHome=process.env.CODEX_HOME||path.join(os.homedir(),'.codex')}={}){return path.join(codexHome,'hooks.json');}
 function generated({node=process.execPath,bridgeRoot=root,bridgeHome=home}={}){
- const command=[node,path.join(bridgeRoot,'harnesses/codex/v0_160/native.mjs'),'hook',JSON.stringify({bridgeHome,bridgeRoot})].map(quote).join(' ');
+ const command=hookCommand([node,path.join(bridgeRoot,'harnesses/codex/v0_160/native.mjs'),process.platform==='win32'?'hook-base64':'hook',process.platform==='win32'?Buffer.from(JSON.stringify({bridgeHome,bridgeRoot})).toString('base64'):JSON.stringify({bridgeHome,bridgeRoot})]);
  return Object.fromEntries(['SessionStart','UserPromptSubmit','PostToolUse','Stop'].map(event=>[event,[{...(event==='PostToolUse'?{matcher:'.*'}:{}),hooks:[{type:'command',command,timeout:event==='Stop'?215:15,statusMessage:marker,...(event==='Stop'?{}:{additionalContextLimit:12000})}]}]]));
 }
 const ours=h=>h.statusMessage===marker;
