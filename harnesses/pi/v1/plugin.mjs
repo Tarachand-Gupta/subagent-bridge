@@ -5,7 +5,7 @@ import {createParentBridge,toolSchemas,ruleGuidance,completionText} from '../../
 // returning to that session creates a new manager instead of reviving old jobs.
 export function mountPiIntegration(pi,{Type,version,bridgeOptions={},makeBridge=createParentBridge}={}){
  if(process.env.HARNESS_BRIDGE_DEPTH)return;
- if(!/^1\.\d+\.\d+$/.test(version||''))throw new Error('Harness Bridge: this Pi version needs a compatibility review. Reconnect in Settings.');
+ if(!/^1\.\d+\.\d+$/.test(version||''))throw new Error('Subagent Bridge: this Pi version needs a compatibility review. Reconnect in Settings.');
  let active=null;
  const scope=ctx=>JSON.stringify([ctx.sessionId,ctx.cwd]);
  const parent=ctx=>{
@@ -36,7 +36,7 @@ export function mountPiIntegration(pi,{Type,version,bridgeOptions={},makeBridge=
   }
   pi.registerTool({name,label:name.replaceAll('_',' '),description:spec.description,parameters:Type.Object(properties),
    async execute(_id,args,signal,_update,ctx){
-    if(signal?.aborted)throw new Error('Harness Bridge parent tool call cancelled before execution');
+    if(signal?.aborted)throw new Error('Subagent Bridge parent tool call cancelled before execution');
     const current=activate(ctx),value=await current.bridge.execute(name,args,current.identity);
     return{content:[{type:'text',text:JSON.stringify(value)}],details:value};
    }});
@@ -44,9 +44,9 @@ export function mountPiIntegration(pi,{Type,version,bridgeOptions={},makeBridge=
  pi.on('before_agent_start',async(_event,ctx)=>{
   try{
    const current=activate(ctx),routes=await current.bridge.execute('bridge_routes',{},current.identity);
-   return{message:{customType:'harness-bridge-routes',display:false,content:ruleGuidance+'\nThis fresh snapshot replaces earlier Harness Bridge rules. Current rules: '+JSON.stringify(routes)+'\nWorkers inherit this Pi session folder: '+current.identity.cwd+'. Use Bridge tools for configured cross-harness work, not Pi native subagent profiles.',details:{routes}}};
+   return{message:{customType:'harness-bridge-routes',display:false,content:ruleGuidance+'\nThis fresh snapshot replaces earlier Subagent Bridge rules. Current rules: '+JSON.stringify(routes)+'\nWorkers inherit this Pi session folder: '+current.identity.cwd+'. Use Bridge tools for configured cross-harness work, not Pi native subagent profiles.',details:{routes}}};
   }catch(error){
-   return{message:{customType:'harness-bridge-error',display:true,content:'Harness Bridge could not load its rules: '+(error?.reason||error?.message||'connection failed'),details:undefined}};
+   return{message:{customType:'harness-bridge-error',display:true,content:'Subagent Bridge could not load its rules: '+(error?.reason||error?.message||'connection failed'),details:undefined}};
   }
  });
  return{close:stop};

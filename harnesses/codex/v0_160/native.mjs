@@ -121,7 +121,7 @@ export async function handleNativeHook(input,options={},request=nativeRequest,ve
  const ctx={...options,sessionId:input.session_id,cwd:input.cwd};
  if(!ctx.sessionId||!path.isAbsolute(ctx.cwd||''))return {};
  const event=input.hook_event_name;
- if(await version()!=='0.160.1')return {systemMessage:'Harness Bridge native connection disabled: the resolved Codex CLI version is not the tested 0.160.1. Update the Bridge integration before delegating.'};
+ if(await version()!=='0.160.1')return {systemMessage:'Subagent Bridge native connection disabled: the resolved Codex CLI version is not the tested 0.160.1. Update the Bridge integration before delegating.'};
  if(event==='SessionStart'||event==='UserPromptSubmit'){
   const routes=await request(ctx,{op:'routes'});const pending=await request(ctx,{op:'drain'});
   return {hookSpecificOutput:{hookEventName:event,additionalContext:nativeInstructions(ctx,routes)+(pending?.results?.length?'\n'+pending.results.map(completionText).join('\n'):'')}};
@@ -129,7 +129,7 @@ export async function handleNativeHook(input,options={},request=nativeRequest,ve
  if(event==='PostToolUse'||event==='Stop'){
   const result=await request(ctx,{op:'drain',waitAll:event==='Stop',waitMs:event==='Stop'&&!input.stop_hook_active?205000:0},{start:false});
   if(result?.results.length){const text=result.results.map(completionText).join('\n')+(result.activeCount?'\nOther jobs remain pending. Report pending work; do not poll or resubmit. An idle chat is not woken; remaining results are offered next turn.':'');return event==='Stop'?{decision:'block',reason:text}:{hookSpecificOutput:{hookEventName:event,additionalContext:text}};}
-  if(event==='Stop'&&result?.activeCount&&!input.stop_hook_active)return {decision:'block',reason:'Harness Bridge still has pending work after its bounded wait. Tell the user it is pending; do not loop, poll, or resubmit it. Results remain recoverable with status and will be offered next turn.'};
+  if(event==='Stop'&&result?.activeCount&&!input.stop_hook_active)return {decision:'block',reason:'Subagent Bridge still has pending work after its bounded wait. Tell the user it is pending; do not loop, poll, or resubmit it. Results remain recoverable with status and will be offered next turn.'};
  }
  return {};
 }
@@ -148,5 +148,5 @@ if(process.argv[1]&&path.resolve(process.argv[1])===self){
    let input='';for await(const chunk of process.stdin){input+=chunk;if(input.length>1000000)throw new Error('Hook input too large');}
    const options=JSON.parse(mode==='hook-base64'?Buffer.from(process.argv[3]||'e30=','base64').toString('utf8'):process.argv[3]||'{}');console.log(JSON.stringify(await handleNativeHook(JSON.parse(input),options)));
   }
- }catch(e){console.log(JSON.stringify(mode?.startsWith('hook')?{systemMessage:'Harness Bridge connection failed: '+e.message}:{ok:false,error:e.message}));process.exitCode=mode?.startsWith('hook')?0:1;}
+ }catch(e){console.log(JSON.stringify(mode?.startsWith('hook')?{systemMessage:'Subagent Bridge connection failed: '+e.message}:{ok:false,error:e.message}));process.exitCode=mode?.startsWith('hook')?0:1;}
 }

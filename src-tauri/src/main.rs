@@ -65,5 +65,5 @@ async fn pick_workspace(app:tauri::AppHandle)->Result<Option<String>,String>{
 fn main(){
  tauri::Builder::default().plugin(tauri_plugin_dialog::init())
  .invoke_handler(tauri::generate_handler![bridge,pick_workspace])
- .run(tauri::generate_context!()).expect("Failed to start Harness Bridge");
+ .run(tauri::generate_context!()).expect("Failed to start Subagent Bridge");
 }

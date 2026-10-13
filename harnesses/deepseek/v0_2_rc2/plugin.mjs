@@ -16,7 +16,7 @@ export function readRuntimeVersion(resourcesPath=process.resourcesPath){
 export function apply(ctx,config={}){return mountIntegration(ctx,config,readRuntimeVersion());}
 export function mountIntegration(ctx,config={},runtimeVersion){
  if(process.env.HARNESS_BRIDGE_DEPTH)return;
- if(config.runtimeVersion!=='0.2.0-rc.2'||runtimeVersion!=='0.2.0-rc.2')throw new Error('Harness Bridge: unsupported DeepSeek runtime; reconnect after compatibility review');
+ if(config.runtimeVersion!=='0.2.0-rc.2'||runtimeVersion!=='0.2.0-rc.2')throw new Error('Subagent Bridge: unsupported DeepSeek runtime; reconnect after compatibility review');
  const options={node:config.node,bridgeRoot:config.bridgeRoot,bridgeHome:config.bridgeHome};
  const call=config.callBridge||callBridge;
  const recent=new Map(),conversations=new Map(),hosts=new Map();
@@ -25,7 +25,7 @@ export function mountIntegration(ctx,config={},runtimeVersion){
  ctx.on?.('dispose',()=>Promise.allSettled([...hosts.values()].map(h=>h.close())));
  function parent(exec){
   const id=exec.agent?.id,cwd=exec.agent?.session?.header?.cwd;
-  if(!id||typeof cwd!=='string'||!path.isAbsolute(cwd))throw new Error('Harness Bridge requires a parent session and its absolute project folder');
+  if(!id||typeof cwd!=='string'||!path.isAbsolute(cwd))throw new Error('Subagent Bridge requires a parent session and its absolute project folder');
   return {id,cwd};
  }
  ctx.tools.register({name:'bridge_routes',description:toolSchemas.bridge_routes.description,parameters:parameters(toolSchemas.bridge_routes),output,isConcurrencySafe:()=>true,
@@ -56,7 +56,7 @@ export function mountIntegration(ctx,config={},runtimeVersion){
    const conversationId=previous?.conversationId||randomUUID();
    const busy=[...conversations.values()].some(c=>c.scope===scope(id,cwd)&&c.conversationId===conversationId&&c.status==='running');
    const conversation={scope:scope(id,cwd),conversationId,status:'running',route:args.route,worker:args.worker,model:args.model};
-   const jobId=ctx.jobs.start({kind:'subagent',label:'Harness Bridge: '+args.route,owner:id,outputLimitBytes:16000,run:()=>{
+   const jobId=ctx.jobs.start({kind:'subagent',label:'Subagent Bridge: '+args.route,owner:id,outputLimitBytes:16000,run:()=>{
     const controller=new AbortController();
     const run=config.callBridge&&!config.createHost?call(command,cwd,{...options,signal:controller.signal}):host(id,cwd).run({conversationId,routeId:args.route,task:args.task,worker:args.worker,model:args.model},{signal:controller.signal});
     const done=run.then(result=>controller.signal.aborted?{status:'killed'}:({status:'completed',result:JSON.stringify({...result,conversationId})}),error=>{for(const c of conversations.values())if(c.conversationId===conversationId)c.invalid=true;return controller.signal.aborted?{status:'killed'}:{status:'failed',detail:JSON.stringify(error?.code?error:{code:'BRIDGE_ERROR',reason:'Bridge execution failed; inspect the selected harness',outcomeUnknown:true})};});
@@ -72,6 +72,6 @@ export function mountIntegration(ctx,config={},runtimeVersion){
    const value=JSON.parse(readFileSync(path.join(config.bridgeHome,'config.json'),'utf8'));
    const routes=(value.routes||[]).filter(r=>r.enabled&&(r.parents?(!r.parents.length||r.parents.includes('deepseek')):r.parent==='*'||r.parent==='deepseek'));
    return ruleGuidance+' DeepSeek native jobs own this execution. Completion notices identify the finished job; use job_output to collect it. Current saved rules: '+JSON.stringify(routes);
-  }catch{return 'Harness Bridge rules could not be loaded. Call bridge_routes to inspect the error before delegating.';}
+  }catch{return 'Subagent Bridge rules could not be loaded. Call bridge_routes to inspect the error before delegating.';}
  }});
 }

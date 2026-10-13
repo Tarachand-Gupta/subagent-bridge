@@ -2,7 +2,7 @@
   "app": {
     "windows": [
       {
-        "title": "Harness Bridge",
+        "title": "Subagent Bridge",
         "width": 980,
         "height": 700,
         "minWidth": 760,

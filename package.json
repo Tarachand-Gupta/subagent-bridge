@@ -1,9 +1,10 @@
 {
-  "name": "harness-bridge-local",
+  "name": "subagent-bridge-local",
   "version": "0.2.0",
-  "description": "Local UI and ACP delegation router for coding agents",
+  "description": "Use other coding agents as subagents\u2014without leaving your own.",
   "type": "module",
   "bin": {
+    "subagent-bridge": "bin.mjs",
     "harness-bridge": "bin.mjs"
   },
   "engines": {
@@ -36,5 +37,9 @@
     "cross-spawn": "7.0.6",
     "jsonc-parser": "3.3.1",
     "yaml": "2.8.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tarachand-Gupta/subagent-bridge.git"
   }
 }

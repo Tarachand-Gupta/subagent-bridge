@@ -11,9 +11,9 @@ if(process.platform==='darwin'){
  const config=JSON.parse(await readFile(path.join(root,'src-tauri/tauri.conf.json'),'utf8'));
  const stage=await mkdtemp(path.join(tmpdir(),'harness-bridge-dmg-'));
  try{
-  await cp(path.join(root,'src-tauri/target/release/bundle/macos/Harness Bridge.app'),path.join(stage,'Harness Bridge.app'),{recursive:true});
+  await cp(path.join(root,`src-tauri/target/release/bundle/macos/${config.productName}.app`),path.join(stage,`${config.productName}.app`),{recursive:true});
   await symlink('/Applications',path.join(stage,'Applications'));
   const output=path.join(root,'src-tauri/target/release/bundle/dmg');await mkdir(output,{recursive:true});
-  run('hdiutil',['create','-volname','Harness Bridge','-srcfolder',stage,'-ov','-format','UDZO',path.join(output,`Harness Bridge_${config.version}_${process.arch}.dmg`)]);
+  run('hdiutil',['create','-volname',config.productName,'-srcfolder',stage,'-ov','-format','UDZO',path.join(output,`${config.productName}_${config.version}_${process.arch}.dmg`)]);
  }finally{await rm(stage,{recursive:true,force:true});}
 }

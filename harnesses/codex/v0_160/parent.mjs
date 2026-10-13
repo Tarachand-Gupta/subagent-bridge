@@ -61,7 +61,7 @@ export async function runParent({executable,cwd,task,model,onEvent=()=>{},timeou
   starting=true;active=true;
   try{
    const text=queue.shift();const routes=await bridge.execute('bridge_routes',{}, {sessionId:threadId,cwd});
-   await call('turn/start',{threadId,input:[{type:'text',text:'Current Harness Bridge rules (supersede earlier snapshots): '+JSON.stringify(routes)+'\n\n'+text}],...(model?{model}:{})});
+   await call('turn/start',{threadId,input:[{type:'text',text:'Current Subagent Bridge rules (supersede earlier snapshots): '+JSON.stringify(routes)+'\n\n'+text}],...(model?{model}:{})});
   }finally{starting=false;}
   if(!active)await pump();
  }

@@ -1,4 +1,6 @@
-# Harness Bridge
+# Subagent Bridge
+
+Use other coding agents as subagents—without leaving your own.
 
 A small, local Tauri app for routing work between coding-agent harnesses. Write a rule as a sentence, choose allowed harnesses/models, and apply it. Each worker runs in its own harness with its own provider settings and inherits the calling parent's project folder.
 
@@ -11,7 +13,7 @@ npm install
 npm run desktop:package
 ```
 
-Open `src-tauri/target/release/bundle/macos/Harness Bridge.app`. This unsigned local build uses Tauri IPC and does not need a browser server. Node and the harnesses remain external dependencies.
+Open `src-tauri/target/release/bundle/macos/Subagent Bridge.app`. This unsigned local build uses Tauri IPC and does not need a browser server. Node and the harnesses remain external dependencies.
 
 1. Click **+ Add Rule**. The control is muted by default, with a thick underline on hover; it is always clickable.
 2. Choose the parent, task, **can use / should use**, worker, model, and thinking. The editor keeps each harness beside its compact model list. Click the harness to change allowed harnesses; click its model list to select alternatives grouped by provider. Each selected model shows its thinking value as text; click it to expand a Thinking dropdown inside the same list row. Only advertised levels and Auto are offered. Hover or focus reveals removal controls; their strike-through preview shows exactly which selection will be removed. Hover or keyboard focus reveals longer names. Multi-selections are alternatives; the parent chooses one per task. Auto/default retains the worker's own setting.
@@ -29,7 +31,7 @@ There is no global project picker. Every parent instance supplies its own curren
 | Pi | 1.1.0 | Managed extension; run `/reload` once. Completion automatically starts a follow-up in the originating session. |
 | OpenCode | 1.18.34 | Native 1.x plugin; restart once. Completion queues a prompt in the originating session. |
 | DeepSeek | desktop-bundled 0.2.0-rc.2 | Native tools and jobs in web, desktop, and headless profiles; restart once. Native notices wake the parent; `job_output` collects the retained result and `job_kill` cancels. |
-| Codex | 0.160.1 | Native hooks; review Harness Bridge in `/hooks`, then start/resume a chat. Completion is injected during active turns or a bounded Stop continuation. Idle chats receive remaining results next turn. Bridge-managed app-server mode is also available. |
+| Codex | 0.160.1 | Native hooks; review the Bridge hooks (legacy label: Harness Bridge) in `/hooks`, then start/resume a chat. Completion is injected during active turns or a bounded Stop continuation. Idle chats receive remaining results next turn. Bridge-managed app-server mode is also available. |
 | Claude Code | — | Deferred; not live-tested. |
 
 Launch a Bridge-managed Codex parent from its project folder:
@@ -38,18 +40,18 @@ Launch a Bridge-managed Codex parent from its project folder:
 node /absolute/path/to/harness-bridge/bin.mjs parent codex --task "Research this project using my configured worker"
 ```
 
-After installing the CLI package, the equivalent is `harness-bridge parent codex --task "…"`. An optional `--model` selects the parent model; omission keeps Codex's configuration. This command owns a separate, ephemeral parent conversation and remains alive until its worker results have been handled. It does not commandeer a running app conversation. Interactive approvals are not supported in this unattended client and are declined rather than automatically approved.
+After installing the CLI package, the equivalent is `subagent-bridge parent codex --task "…"`. An optional `--model` selects the parent model; omission keeps Codex's configuration. This command owns a separate, ephemeral parent conversation and remains alive until its worker results have been handled. It does not commandeer a running app conversation. Interactive approvals are not supported in this unattended client and are declined rather than automatically approved.
 
 Pi, OpenCode, and managed Codex expose `bridge_routes`, `bridge_delegate`, `bridge_message`, `bridge_status`, and `bridge_cancel`. DeepSeek exposes routes, delegate, and message, and uses its own native job tools. `bridge_delegate` returns immediately, allowing independent parent work. Results must arrive before dependent work can be claimed. Plain CLI `delegate` still waits for its result; background scheduling belongs to the parent integration.
 
 ## Configure from another agent
 
-Settings shows native connections and asks: “Want your agent to manage Harness Bridge?” Install the configuration MCP for an agent, or copy/preview its configuration. The MCP descriptions carry the full workflow; no separate skill is needed. A blue outline and green check identify an installed configuration; an existing session may still need a reload. Codex hook trust is queried read-only through its versioned app-server API. Unavailable approval status is shown as Configured, never a false request to review again.
+Settings shows native connections and asks: “Want your agent to manage Subagent Bridge?” Install the configuration MCP for an agent, or copy/preview its configuration. The MCP descriptions carry the full workflow; no separate skill is needed. A blue outline and green check identify an installed configuration; an existing session may still need a reload. Codex hook trust is queried read-only through its versioned app-server API. Unavailable approval status is shown as Configured, never a false request to review again.
 
 The configuration MCP uses the official MCP SDK over standard input/output:
 
 ```sh
-harness-bridge mcp
+subagent-bridge mcp
 ```
 
 Its five tools are `bridge_config_read`, `bridge_config_preview`, `bridge_config_save`, `bridge_agents_list`, and `bridge_models_list`. Read the current configuration and revision, preserve unrelated rules, preview the proposed full configuration, then save with that revision. A concurrent change rejects the save. The desktop editor uses the same revision check and retains an unsaved draft on conflict. Discovery reports installed versions and actual harness model catalogs; a catalog entry does not prove provider access.
@@ -57,9 +59,9 @@ Its five tools are `bridge_config_read`, `bridge_config_preview`, `bridge_config
 The MCP manages configuration and discovery. Background task execution and completion delivery remain the native parent integration's responsibility. Saving through MCP uses the same rule-save and native-connection operation as the app; it never submits a model task or accepts credentials. The MCP descriptions include the complete configuration workflow. A CLI fallback is also available:
 
 ```sh
-harness-bridge config read
-harness-bridge config preview --file proposed-rules.json
-harness-bridge config save --file proposed-rules.json --revision REVISION_FROM_READ
+subagent-bridge config read
+subagent-bridge config preview --file proposed-rules.json
+subagent-bridge config save --file proposed-rules.json --revision REVISION_FROM_READ
 ```
 
 Setup adapters live in each harness's `setup.mjs`. They preserve unrelated configuration, back up changes, refuse symlinked target files and unowned name collisions, and recognize user edits to managed entries. Codex uses its own MCP CLI; Pi uses its native MCP configuration; OpenCode preserves JSONC comments; DeepSeek uses profile patch insertions. The app does not automatically install optional MCPs when saving rules.
@@ -136,17 +138,17 @@ Bridge advertises no client-side filesystem or terminal capabilities and cancels
 `node bin.mjs` starts the optional loopback UI on port 4780. `npm pack` produces the CLI/browser package; it has not been published to npm. `npm test` runs local regression tests. Tauri builds stage production dependencies separately from development tools.
 
 ```sh
-harness-bridge detect
-harness-bridge models codex
-harness-bridge routes --parent pi
-harness-bridge delegate --route RULE_ID --parent pi --workspace /project --task "Review the changes"
+subagent-bridge detect
+subagent-bridge models codex
+subagent-bridge routes --parent pi
+subagent-bridge delegate --route RULE_ID --parent pi --workspace /project --task "Review the changes"
 ```
 
 Legacy `apply` remains a manual project-instruction fallback; the desktop Save flow does not require or modify project instruction files.
 
 ## Desktop packages and platform support
 
-The main app is **Harness Bridge 0.2.0**, with one editor and one arrow icon. The
+The main app is **Subagent Bridge 0.2.0**, with one editor and one arrow icon. The
 Enable **Settings → Advanced → Show prompt previews** to reveal the **Aa** button (off by default, saved on this device). The button on each rule replaces only that rule’s controls with read-only parent routing
 instructions generated by the same function used by the integrations. Off rules
 are clearly marked inactive. The preview occupies the same space as its sentence and scrolls internally; other rules stay unchanged. Shared harness instructions and runtime bindings are separate from this rule preview.
@@ -178,3 +180,7 @@ release validation. Linux AppImages need a compatible host's FUSE setup. Do not
 infer platform acceptance from the existence of a package configuration or CI file.
 
 Desktop drafts are stored separately in `~/.harness-bridge/editor-draft.json`. The live `config.json` remains unchanged until Apply. MCP/CLI configuration saves continue to apply immediately. A newer external apply supersedes a pending desktop draft without discarding its recoverable contents; stale apply requests are rejected. The Aa surface displays exact prompt text, including literal Markdown, in a tinted monospace container with internal scrolling.
+
+## Existing installations
+
+Subagent Bridge is the new name for Harness Bridge. The `harness-bridge` CLI remains an alias. Existing `~/.harness-bridge` rules, drafts, tasks, sessions, `HARNESS_BRIDGE_*` environment variables, MCP server IDs, integration filenames, managed markers, and the `dev.harnessbridge.desktop` app identifier are deliberately unchanged. Do not rename or delete those paths when upgrading. Existing hooks may still display the legacy name so their ownership and approval remain valid. A change of install location still requires an explicit integration update; keep the old runtime available until that update is complete.

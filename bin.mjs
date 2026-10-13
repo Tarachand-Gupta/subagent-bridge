@@ -28,7 +28,7 @@ try{
  else if(command==='routes')result=await describeRoutes(option('parent'));
  else if(command==='apply')result=await apply(args[0]);
  else if(command==='delegate')result=await delegate({routeId:option('route'),parent:option('parent'),workspace:option('workspace'),parentWorkspace:option('parent-workspace'),task:option('task'),worker:option('worker'),model:option('model')});
- else if(command==='--help'||command==='help')result={usage:['harness-bridge [ui] [--port 4780]','harness-bridge mcp','harness-bridge config read','harness-bridge config preview --file PATH','harness-bridge config save --file PATH --revision REVISION','harness-bridge detect','harness-bridge parent codex --task TEXT [--model MODEL]','harness-bridge models <harness>','harness-bridge routes [--parent HARNESS]','harness-bridge settings','harness-bridge apply <absolute workspace>','harness-bridge delegate --route ID --parent HARNESS --workspace PATH --task TEXT [--worker HARNESS] [--model MODEL]']};
+ else if(command==='--help'||command==='help')result={usage:['subagent-bridge [ui] [--port 4780]','subagent-bridge mcp','subagent-bridge config read','subagent-bridge config preview --file PATH','subagent-bridge config save --file PATH --revision REVISION','subagent-bridge detect','subagent-bridge parent codex --task TEXT [--model MODEL]','subagent-bridge models <harness>','subagent-bridge routes [--parent HARNESS]','subagent-bridge settings','subagent-bridge apply <absolute workspace>','subagent-bridge delegate --route ID --parent HARNESS --workspace PATH --task TEXT [--worker HARNESS] [--model MODEL]']};
  else throw new Error('Unknown command; use --help');
  if(result!==undefined)console.log(JSON.stringify(result,null,2));
 }catch(e){

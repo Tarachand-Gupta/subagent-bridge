@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Harness Bridge",
+  "productName": "Subagent Bridge",
   "version": "0.2.0",
   "identifier": "dev.harnessbridge.desktop",
   "build": {
@@ -11,7 +11,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Harness Bridge",
+        "title": "Subagent Bridge",
         "width": 980,
         "height": 700,
         "minWidth": 760,

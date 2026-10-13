@@ -16,7 +16,7 @@ export function createOpenCodePlugin({tool,bridgeOptions={},makeBridge=createPar
   if(process.env.HARNESS_BRIDGE_DEPTH)return {};
   const version=await readVersion();
   if(!/^1\.\d+\.\d+$/.test(version||'')){
-   const warning=`Harness Bridge parent tools are disabled: OpenCode ${version||'unknown version'} is not supported by the 1.x adapter. Reconnect using a compatible Bridge adapter; no background tasks were started.`;
+   const warning=`Subagent Bridge parent tools are disabled: OpenCode ${version||'unknown version'} is not supported by the 1.x adapter. Reconnect using a compatible Bridge adapter; no background tasks were started.`;
    try{await client.app?.log?.({body:{service:'harness-bridge',level:'warn',message:warning}});}catch{}
    return {'experimental.chat.system.transform':async(_input,output)=>{output.system.push(warning);}};
   }
@@ -58,9 +58,9 @@ export function createOpenCodePlugin({tool,bridgeOptions={},makeBridge=createPar
      const session=response?.data??response;
      const ctx=remember(input.sessionID,session?.directory);
      const rules=await bridge.execute('bridge_routes',{},ctx);
-     output.system.push(ruleGuidance+'\nThis fresh snapshot replaces all previous Harness Bridge rules for this session. Current rules: '+JSON.stringify(rules)+'\nThe worker inherits this session directory: '+ctx.cwd);
+     output.system.push(ruleGuidance+'\nThis fresh snapshot replaces all previous Subagent Bridge rules for this session. Current rules: '+JSON.stringify(rules)+'\nThe worker inherits this session directory: '+ctx.cwd);
     }catch{
-     output.system.push('Harness Bridge could not refresh this session’s rules. Do not use stale rules or silently substitute a worker. Report the connection problem; bridge_routes can check again when the connection is repaired.');
+     output.system.push('Subagent Bridge could not refresh this session’s rules. Do not use stale rules or silently substitute a worker. Report the connection problem; bridge_routes can check again when the connection is repaired.');
     }
    },
    async event({event}){
