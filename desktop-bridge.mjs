@@ -1,3 +1,4 @@
+import {taskLibrary,saveTask} from './lib/task-library.mjs';
 import {editorState,saveEditorDraft,applyEditorRules} from './lib/editor-state.mjs';
 import {validateEnabledRules} from './lib/rule-validation.mjs';
 import {connectionStatus,saveAndConnect} from './lib/connections.mjs';
@@ -8,6 +9,8 @@ let input='';for await(const chunk of process.stdin){input+=chunk;if(input.lengt
 try {
  const {method,path,body}=JSON.parse(input);let result;
  if(method==='GET'&&path==='/api/state'){const state=await editorState();result={agents:await detect(),...state,connections:await connectionStatus(),integration:'Native parent integrations with persistent worker conversations'};}
+ else if(method==='GET'&&path==='/api/tasks')result=await taskLibrary();
+ else if(method==='POST'&&path==='/api/task-save')result=await saveTask(body);
  else if(method==='GET'&&path==='/api/setup-status')result=await setupStatus();
  else if(method==='POST'&&path==='/api/setup-install'){await installSetup(body.kind,body.id);result=await setupStatus();}
  else if(method==='POST'&&path==='/api/probe')result=await probe(body.agentId,{modelId:body.modelId});

@@ -34,7 +34,8 @@
       "../.runtime/node_modules/": "backend/node_modules/",
       "../harnesses/": "backend/harnesses/",
       "../public/rule-validation.mjs": "backend/public/rule-validation.mjs",
-      "../public/rule-prompt.mjs": "backend/public/rule-prompt.mjs"
+      "../public/rule-prompt.mjs": "backend/public/rule-prompt.mjs",
+      "../public/task-library.mjs": "backend/public/task-library.mjs"
     },
     "macOS": {
       "minimumSystemVersion": "12.0"

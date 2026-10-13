@@ -1,7 +1,9 @@
+import {DEFAULT_TASKS,uniqueTaskName} from './task-library.mjs';
 import {ruleInstruction} from './rule-prompt.mjs';
 import {ruleReadiness} from './rule-validation.mjs';
 'use strict';
-const $=s=>document.querySelector(s),names={codex:'Codex',claude:'Claude Code',pi:'Pi',opencode:'OpenCode',deepseek:'DeepSeek'},presets=['General task','Code review','Implementation','Debugging','Research'];
+const $=s=>document.querySelector(s),names={codex:'Codex',claude:'Claude Code',pi:'Pi',opencode:'OpenCode',deepseek:'DeepSeek'};
+let taskState={tasks:structuredClone(DEFAULT_TASKS),revision:null},tasksLoading=false;
 const modelProbes=new Map();
 const catalogs=new Map(),probing=new Set(),cards=new Map(),installing=new Set();let setupStatus=null,setupLoading=false,setupError='',setupRevision=0;let baseRevision,appliedRevision,savedSnapshot,actionInProgress='';let agents=[],config={version:1,routes:[]},loaded=false,dirty=false,busy=false,connections={};
 let setupCheckedAt=null;const promptPreviews=new Set();
@@ -226,9 +228,12 @@ function renderRules(){
   const worker=multiPicker({label:`Worker harnesses for rule ${i+1}`,auto:'any available harness',entries:agentEntries,values:()=>r.workers,choose:(values,{removed}={})=>{
    if(removed){r.models=r.models.filter(m=>m.worker!==removed);delete r.reasoningByWorker[removed];}r.workers=values;r.models=r.models.filter(m=>!values.length||values.includes(m.worker));if(values.length)r.reasoningByWorker=Object.fromEntries(Object.entries(r.reasoningByWorker||{}).filter(([id])=>values.includes(id)));changed(r);renderWorkerEditors();refresh();ensureCatalogs(r);
   }});
-  const taskValue=r.task==='Auto'?'Auto':presets.includes(r.task)?r.task:'Custom';
-  sentence.append(word('When'),parent.element,word('needs'),select(`Task type for rule ${i+1}`,[['Auto','any task'],...presets.map(p=>[p,p]),['Custom','Custom task…']],taskValue,value=>{r.task=value==='Custom'?'':value;changed(r);renderRules();}));
-  if(taskValue==='Custom'){const custom=el('input','custom-task');custom.placeholder='Describe the task';custom.value=r.task;custom.setAttribute('aria-label',`Custom task for rule ${i+1}`);custom.addEventListener('input',()=>{r.task=custom.value;changed(r);refresh();});sentence.append(custom);}
+  const taskChoices=()=>[['Auto','any task'],...visibleTasks().map(t=>[t.name,t.name]),['__bridge_add_task__','＋ Add new task',!taskState.revision]];
+  const taskSelect=select(`Task type for rule ${i+1}`,taskChoices(),r.task,value=>{
+   if(value==='__bridge_add_task__'){taskSelect.setChoices(taskChoices(),r.task);openTaskDialog({ruleId:r.id,returnTo:()=>cards.get(r.id)?.focusTask()});return;}
+   r.task=value;changed(r);refresh();
+  });
+  sentence.append(word('When'),parent.element,word('needs'),taskSelect);
   const usage=select(`Delegation policy for rule ${i+1}`,[['can','can use'],['should','should use']],r.usage,value=>{r.usage=value;changed(r);refresh();});usage.classList.add('usage-select');sentence.append(usage);
   const workerArea=el('span','worker-area'),editors=[],editorMap=new Map();
   function renderWorkerEditors(){
@@ -241,7 +246,7 @@ function renderRules(){
    sentence.append(workerArea,word('models in'),execution,word('harnesses.'));renderWorkerEditors();
   }
   function refresh(){
-   parent.refresh();worker.refresh();for(const editor of editors)editor.refresh();
+   taskSelect.setChoices(taskChoices(),r.task);parent.refresh();worker.refresh();for(const editor of editors)editor.refresh();
    const previewing=showPromptPreviews&&promptPreviews.has(r.id);promptButton.hidden=!showPromptPreviews;pane.classList.toggle('show-prompt',previewing);sentence.inert=previewing;sentence.setAttribute('aria-hidden',String(previewing));preview.hidden=!previewing;preview.textContent=ruleInstruction(r);promptButton.setAttribute('aria-pressed',String(previewing));
    ensureThinkingChecks(r);
    const result=ruleReadiness(r,agents,catalogs);if(r.enabled&&!result.valid&&!result.pending){r.enabled=false;changed(r);}
@@ -249,7 +254,7 @@ function renderRules(){
    validation.textContent=result.valid?(r.enabled?'':'Off'):result.message;validation.classList.toggle('invalid',!result.valid&&!result.pending);
 
   }
-  parent.element.classList.add('parent-choice');worker.element.classList.add('worker-choice');pane.append(sentence,preview);card.append(head,pane);root.append(card);cards.set(r.id,{refresh,focusWorker:()=>workerArea.querySelector('button')?.focus({preventScroll:true})});refresh();
+  parent.element.classList.add('parent-choice');worker.element.classList.add('worker-choice');pane.append(sentence,preview);card.append(head,pane);root.append(card);cards.set(r.id,{refresh,focusTask:()=>taskSelect.trigger.focus({preventScroll:true}),focusWorker:()=>workerArea.querySelector('button')?.focus({preventScroll:true})});refresh();
  });controls();
 }
 function renderAgents(){
@@ -301,13 +306,13 @@ async function installSetup(kind,entry){
  catch(error){setupFeedback(error.message||'Installation failed.',true);}
  finally{installing.delete(key);renderSetup();}
 }
-async function load(){busy=true;$('#refresh').disabled=true;try{const state=await api('/api/state');agents=state.agents||[];connections=state.connections||{};connectionText();if(!loaded||!dirty){const drafts=!loaded&&dirty?config.routes:[];config={version:1,routes:[],...state.config};config.routes=[...config.routes,...drafts].map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);if(state.preservedDraft){$('#save-conflict').hidden=false;$('#save-conflict').open=true;$('#draft-text').value=JSON.stringify(state.preservedDraft,null,2);notice('Rules were applied outside this app. The latest rules are loaded; your earlier saved draft is preserved below.');}}loaded=true;void loadSetup();$('#connection').textContent='On your machine';renderAgents();renderRules();for(const r of config.routes)ensureCatalogs(r);}catch(e){notice(String(e.message||e),true);$('#connection').textContent='Connection unavailable';}finally{busy=false;$('#refresh').disabled=false;controls();}}
+async function load(){busy=true;$('#refresh').disabled=true;try{const state=await api('/api/state');agents=state.agents||[];connections=state.connections||{};connectionText();if(!loaded||!dirty){const drafts=!loaded&&dirty?config.routes:[];config={version:1,routes:[],...state.config};config.routes=[...config.routes,...drafts].map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);if(state.preservedDraft){$('#save-conflict').hidden=false;$('#save-conflict').open=true;$('#draft-text').value=JSON.stringify(state.preservedDraft,null,2);notice('Rules were applied outside this app. The latest rules are loaded; your earlier saved draft is preserved below.');}}loaded=true;void loadSetup();$('#connection').textContent='On your machine';renderAgents();renderRules();renderTaskLibrary();for(const r of config.routes)ensureCatalogs(r);}catch(e){notice(String(e.message||e),true);$('#connection').textContent='Connection unavailable';}finally{busy=false;$('#refresh').disabled=false;controls();}}
 function showConflict(){
  const panel=$('#save-conflict');panel.hidden=false;panel.open=true;$('#draft-text').value=JSON.stringify(config,null,2);notice('Rules changed outside this app. Your draft is preserved below. Load the latest rules, then reapply the changes you want to keep.',true);
 }
 async function loadLatest(){
  if(busy)return;busy=true;controls();$('#load-latest').disabled=true;
- try{const state=await api('/api/state');$('#draft-text').value=JSON.stringify(config,null,2);config={version:1,routes:[],...state.config};config.routes=config.routes.map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);agents=state.agents||[];connections=state.connections||{};dirty=false;loaded=true;connectionText();renderAgents();renderRules();for(const rule of config.routes)ensureCatalogs(rule);notice('Latest rules loaded. Your previous draft remains below for reference while you reapply your changes.');}
+ try{const state=await api('/api/state');$('#draft-text').value=JSON.stringify(config,null,2);config={version:1,routes:[],...state.config};config.routes=config.routes.map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);agents=state.agents||[];connections=state.connections||{};dirty=false;loaded=true;connectionText();renderAgents();renderRules();renderTaskLibrary();for(const rule of config.routes)ensureCatalogs(rule);notice('Latest rules loaded. Your previous draft remains below for reference while you reapply your changes.');}
  catch(error){notice(error.message||'Could not load the latest rules. Your draft is unchanged.',true);}
  finally{busy=false;$('#load-latest').disabled=false;controls();}
 }
@@ -323,10 +328,55 @@ async function save(apply=false){
  finally{busy=false;actionInProgress='';controls();}
 }
 
+function visibleTasks(){
+ const list=taskState.tasks.map(t=>({...t}));
+ for(const r of config.routes)if(r.task&&r.task!=='Auto'&&!list.some(t=>t.name.toLowerCase()===r.task.toLowerCase()))list.push({name:r.task});
+ return list;
+}
+function renderTaskLibrary(){
+ const root=$('#task-library');root.replaceChildren();
+ for(const task of visibleTasks()){
+  const button=el('button','task-chip');button.type='button';button.disabled=!taskState.revision;button.setAttribute('aria-label',`Edit task ${task.name}`);button.append(el('span','',task.name),el('span','task-edit-icon','↗'));button.lastChild.setAttribute('aria-hidden','true');
+  button.addEventListener('click',()=>openTaskDialog({task,returnTo:()=>[...root.querySelectorAll('button')].find(b=>b.dataset.id===task.id)?.focus()}));button.dataset.id=task.id||task.name;root.append(button);
+ }
+ $('#add-task').disabled=!taskState.revision;
+}
+async function loadTasks(){
+ if(tasksLoading)return;tasksLoading=true;
+ try{taskState=await api('/api/tasks');$('#task-library-status').textContent='';renderTaskLibrary();for(const card of cards.values())card.refresh();}
+ catch(error){$('#task-library-status').textContent=error.message||'Could not load tasks.';}
+ finally{tasksLoading=false;}
+}
+function openTaskDialog({task,ruleId,returnTo}={}){
+ if(!taskState.revision||document.querySelector('.task-dialog'))return;
+ for(const select of document.querySelectorAll('.themed-select'))select.closeSelect?.();
+ const dialog=el('dialog','task-dialog'),form=el('form'),heading=el('div','task-dialog-heading'),title=el('h2','',task?'Edit task':'New task'),close=el('button','task-close','×'),label=el('label','','Task name'),input=el('input','task-name'),error=el('p','task-error'),hint=el('p','task-hint'),actions=el('div','dialog-actions'),cancel=el('button','dialog-cancel','Cancel'),submit=el('button','task-submit',task?'Save task':'Add task');
+ let saving=false;const originalName=task?.name;
+ title.id='task-dialog-title';dialog.setAttribute('aria-labelledby',title.id);input.id='task-dialog-name';input.maxLength=120;input.required=true;input.value=originalName||'';input.placeholder='e.g. Security audit';input.autocomplete='off';label.htmlFor=input.id;error.id='task-dialog-error';error.setAttribute('role','status');input.setAttribute('aria-describedby',error.id);close.type=cancel.type='button';close.setAttribute('aria-label','Close task editor');submit.type='submit';
+ heading.append(title,close);actions.append(cancel,submit);form.append(heading,label,input,error,hint,actions);dialog.append(form);document.body.append(dialog);
+ function validateInput(){let message='';try{uniqueTaskName(input.value,taskState.tasks,task?.id);}catch(e){message=e.message;}error.textContent=input.value?message:'';input.setAttribute('aria-invalid',String(!!message&&!!input.value));submit.disabled=saving||!!message||(task?.id&&input.value.trim()===originalName);const count=originalName?config.routes.filter(r=>r.task===originalName).length:0;hint.textContent=count?`Renaming updates ${count===1?'this rule':`${count} rules`} in your draft. Save and apply rules to publish.`:'Available in every rule’s task dropdown.';}
+ const dismiss=()=>{if(saving)return;dialog.close();dialog.remove();returnTo?.();if(!document.activeElement||document.activeElement===document.body)$('#add-task').focus({preventScroll:true});};
+ cancel.addEventListener('click',dismiss);close.addEventListener('click',dismiss);dialog.addEventListener('cancel',event=>{event.preventDefault();dismiss();});dialog.addEventListener('click',event=>{if(event.target===dialog){const b=dialog.getBoundingClientRect();if(event.clientX<b.left||event.clientX>b.right||event.clientY<b.top||event.clientY>b.bottom)dismiss();}});input.addEventListener('input',validateInput);
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();if(saving||submit.disabled)return;let name;try{name=uniqueTaskName(input.value,taskState.tasks,task?.id);}catch(e){error.textContent=e.message;return;}
+  saving=true;submit.disabled=true;cancel.disabled=close.disabled=true;submit.textContent='Saving…';
+  try{
+   const result=await api('/api/task-save',{...(task?.id?{id:task.id}:{}),name,expectedRevision:taskState.revision});taskState={tasks:result.tasks,revision:result.revision};let edited=false;
+   for(const r of config.routes)if((ruleId&&r.id===ruleId)||(originalName&&r.task===originalName)){r.task=result.task.name;edited=true;}
+   if(edited)changed();renderTaskLibrary();for(const card of cards.values())card.refresh();$('#task-library-status').textContent=edited?'Task saved. Save and apply your rule changes when ready.':'Task saved.';saving=false;dialog.close();dialog.remove();returnTo?.();
+  }catch(e){if(/Task list changed/.test(e.message)){await loadTasks();}error.textContent=e.message||'Could not save task.';}
+  finally{saving=false;if(dialog.isConnected){submit.textContent=task?'Save task':'Add task';submit.disabled=false;cancel.disabled=close.disabled=false;input.focus();}}
+ });
+ dialog.showModal();validateInput();input.focus();input.select();
+}
+$('#add-task').addEventListener('click',()=>openTaskDialog({returnTo:()=>$('#add-task').focus()}));
+$('#task-section-info').append(infoButton('About tasks','Click a task to rename it, or add one of your own. Task names are saved on this device. Auto always remains available. Renaming updates matching rules in the current draft; Save and Apply publishes those rule changes.'));
+renderTaskLibrary();
+
 $('#load-latest').addEventListener('click',loadLatest);
 function showSettings(open){
  $('#agents-panel').hidden=!open;$('#rules-panel').hidden=open;$('#rules-actions').hidden=open;const button=$('#settings-toggle');button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',open?'Close settings':'Open settings');button.querySelector('span').textContent=open?'Close settings':'Settings';button.querySelector('.settings-gear').toggleAttribute('hidden',open);button.querySelector('.settings-close').toggleAttribute('hidden',!open);document.body.classList.toggle('settings-open',open);window.scrollTo(0,0);
- if(open){renderSetup();void load();}else $('#settings-toggle').focus({preventScroll:true});
+ if(open){renderSetup();void loadTasks();void load();}else $('#settings-toggle').focus({preventScroll:true});
 }
 $('#settings-toggle').addEventListener('click',()=>showSettings($('#agents-panel').hidden));
 $('#show-prompt-previews').checked=showPromptPreviews;
@@ -338,4 +388,4 @@ $('#show-prompt-previews').addEventListener('change',event=>{
 });
 $('#prompt-preview-info').append(infoButton('About prompt previews','Show an Aa button on each rule to inspect its generated instruction. Read only; each preview stays within that rule. This display preference is saved automatically on this device.'));
 
-$('#add').addEventListener('click',()=>{config.routes.push(normalize({id:crypto.randomUUID(),parents:[],workers:[],models:[],reasoning:'',task:'Auto',enabled:false}));changed();renderRules();ensureCatalogs(config.routes.at(-1));});$('#save-only').addEventListener('click',()=>save(false));$('#save-apply').addEventListener('click',()=>save(true));$('#refresh').addEventListener('click',load);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const active=[...document.querySelectorAll('.worker-editor')].find(w=>w.querySelector('.model-select-row.expanded'));if(active)active.closeThinking?.();else for(const w of document.querySelectorAll('.worker-editor'))w.closeEditor?.();}});document.addEventListener('scroll',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();},true);window.addEventListener('resize',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();});document.addEventListener('click',e=>{for(const s of document.querySelectorAll('.themed-select'))if(!e.composedPath().includes(s))s.closeSelect?.();for(const tooltip of document.querySelectorAll('.info-control.tip-open'))if(!e.composedPath().includes(tooltip)){tooltip.classList.remove('tip-open');tooltip.querySelector('button').setAttribute('aria-expanded','false');}for(const editor of document.querySelectorAll('.worker-editor'))if(!e.composedPath().includes(editor))editor.closeEditor?.();for(const d of document.querySelectorAll('.combo'))if(!e.composedPath().includes(d))d.closePicker?.();});$('#rules-help').append(infoButton('How rules work','Enable prompt previews in Settings to inspect a rule with Aa. Preview is read only and scrolls within the rule’s existing space; Save Rules keeps a draft; Apply Rules publishes it to agents. Runtime tools and shared delegation guidance are added by the harness. Can use permits delegation; Should use requires it for matching tasks. Multiple harnesses and models are alternatives: the parent chooses one per task. Workers inherit the parent’s folder. Thinking belongs to each model. New rules start off; enable them after validation passes. Validation checks installed harnesses and advertised settings, not provider billing or live model responses.'));renderSetup();load();
+$('#add').addEventListener('click',()=>{config.routes.push(normalize({id:crypto.randomUUID(),parents:[],workers:[],models:[],reasoning:'',task:'Auto',enabled:false}));changed();renderRules();ensureCatalogs(config.routes.at(-1));});$('#save-only').addEventListener('click',()=>save(false));$('#save-apply').addEventListener('click',()=>save(true));$('#refresh').addEventListener('click',load);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const active=[...document.querySelectorAll('.worker-editor')].find(w=>w.querySelector('.model-select-row.expanded'));if(active)active.closeThinking?.();else for(const w of document.querySelectorAll('.worker-editor'))w.closeEditor?.();}});document.addEventListener('scroll',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();},true);window.addEventListener('resize',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();});document.addEventListener('click',e=>{for(const s of document.querySelectorAll('.themed-select'))if(!e.composedPath().includes(s))s.closeSelect?.();for(const tooltip of document.querySelectorAll('.info-control.tip-open'))if(!e.composedPath().includes(tooltip)){tooltip.classList.remove('tip-open');tooltip.querySelector('button').setAttribute('aria-expanded','false');}for(const editor of document.querySelectorAll('.worker-editor'))if(!e.composedPath().includes(editor))editor.closeEditor?.();for(const d of document.querySelectorAll('.combo'))if(!e.composedPath().includes(d))d.closePicker?.();});$('#rules-help').append(infoButton('How rules work','Enable prompt previews in Settings to inspect a rule with Aa. Preview is read only and scrolls within the rule’s existing space; Save Rules keeps a draft; Apply Rules publishes it to agents. Runtime tools and shared delegation guidance are added by the harness. Can use permits delegation; Should use requires it for matching tasks. Multiple harnesses and models are alternatives: the parent chooses one per task. Workers inherit the parent’s folder. Thinking belongs to each model. New rules start off; enable them after validation passes. Validation checks installed harnesses and advertised settings, not provider billing or live model responses.'));renderSetup();void loadTasks();load();
