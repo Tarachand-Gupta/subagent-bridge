@@ -25,7 +25,9 @@ npm run desktop:package
 
 On macOS, open `src-tauri/target/release/bundle/macos/Subagent Bridge.app`. The native app uses Tauri IPC and does not need a browser server. Tauri builds stage production dependencies separately from development tools; Node and the harnesses remain external dependencies.
 
-For a distributable Mac build, follow [Developer ID signing and notarization](macos-signing.md).
+For a distributable Mac build, use `npm run release:mac`. It signs, notarizes,
+staples and verifies the app and installer using your Keychain credentials.
+See [automated Mac releases](macos-signing.md) for setup and publishing.
 
 ## Check changes
 

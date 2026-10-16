@@ -16,7 +16,8 @@
     "desktop": "tauri dev",
     "desktop:build": "tauri build",
     "stage:runtime": "node scripts/stage-runtime.mjs",
-    "desktop:package": "node scripts/package-desktop.mjs"
+    "desktop:package": "node scripts/package-desktop.mjs",
+    "release:mac": "node scripts/release-macos.mjs"
   },
   "files": [
     "bin.mjs",
