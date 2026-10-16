@@ -91,4 +91,15 @@ Existing commands retain their behavior:
 - `delegate` waits for a result. Background jobs and messages to a retained worker conversation use the parent integration's `bridge_delegate` and `bridge_message` tools.
 - `ui` starts the optional local browser UI; it is also the default when no command is supplied.
 
+## Discover agents and run a task
+
+```sh
+subagent-bridge detect
+subagent-bridge models codex
+subagent-bridge routes --parent pi
+subagent-bridge delegate --route RULE_ID --parent pi --workspace /project --task "Review the changes"
+```
+
+Use a route ID returned by `routes` and your actual project path. Plain CLI `delegate` waits for its result; use a [native parent integration](integrations.md#parent-integrations) for background delegation and same-session follow-ups.
+
 Use `subagent-bridge --help` for the complete command list. Native Windows/Linux harness sessions still require platform acceptance testing; a portable configuration path alone does not establish full platform support.
