@@ -62,7 +62,7 @@ worker service remains alive. Codex receives replies during an active turn or
 on the next turn; this preview does not wake an idle Codex chat.
 
 Claude Code is deferred. Exact tested versions and limitations are recorded in:
-https://github.com/Tarachand-Gupta/subagent-bridge#parent-integrations
+https://github.com/Tarachand-Gupta/subagent-bridge/blob/main/docs/integrations.md#parent-integrations
 
 ## Upgrading an existing installation
 
