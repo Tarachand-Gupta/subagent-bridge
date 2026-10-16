@@ -30,3 +30,22 @@ test('save validation probes thinking per model, honors explicit Auto, and rejec
  await assert.rejects(validateEnabledRules({routes:[{...rule,models:[{worker:'opencode',id:'missing'}]}]},dependencies),/no longer advertises/);
  calls.length=0;await validateEnabledRules({routes:[{...rule,enabled:false,task:''}]},dependencies);assert.equal(calls.length,0);
 });
+
+test('a verified ACP worker with no model controls accepts only harness default',()=>{
+ const opaque={models:[],currentModel:'',protocolVerified:true,harnessDefault:true};
+ const defaultRule={...rule,models:[],reasoning:''};
+ assert.equal(ruleReadiness(defaultRule,agents,{opencode:opaque}).valid,true);
+ assert.equal(ruleReadiness({...defaultRule,reasoning:'high'},agents,{opencode:opaque}).valid,false);
+ assert.equal(ruleReadiness(rule,agents,{opencode:opaque}).valid,false);
+ assert.equal(ruleReadiness(defaultRule,agents,{opencode:{...opaque,protocolVerified:false}}).valid,false);
+});
+test('readiness reports failed discovery without mutating the enabled rule',()=>{
+ const retained=structuredClone(rule);assert.equal(ruleReadiness(retained,agents,{opencode:{...catalog,error:'Offline'}}).valid,false);
+ assert.deepEqual(retained,rule);
+});
+
+test('default-model thinking uses independently advertised ACP controls',()=>{
+ const c={models:[],currentModel:'managed-current-model',harnessDefault:true,protocolVerified:true,configOptions:[{id:'thought_level',name:'Thinking',options:[{name:'Levels',options:[{value:'high',name:'High'}]}]}]};
+ assert.equal(ruleReadiness({...rule,models:[],reasoning:'high'},agents,{opencode:c}).valid,true);
+ assert.equal(ruleReadiness({...rule,models:[],reasoning:'low'},agents,{opencode:c}).valid,false);
+});

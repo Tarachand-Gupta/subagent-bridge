@@ -1,3 +1,9 @@
+// Session controls can exist even when a harness keeps its model choice private.
+export function defaultThinking(catalog){
+ const option=catalog?.configOptions?.find(o=>/reason|think|effort/i.test([o.id,o.name,o.category].join(' ')));
+ const flatten=options=>(options||[]).flatMap(o=>o.options?flatten(o.options):typeof o.value==='string'&&o.value?[[o.value,o.name||o.value]]:[]);
+ return flatten(option?.options);
+}
 // Shared by the editor and save path. Discovery checks configuration, never paid inference.
 export function ruleReadiness(rule,agents,catalogs={}){
  const issues=[],pending=[];const catalog=id=>catalogs instanceof Map?catalogs.get(id):catalogs[id];
@@ -11,11 +17,12 @@ export function ruleReadiness(rule,agents,catalogs={}){
  for(const id of workers){
   const errors=[],wait=[];const a=agents.find(a=>a.id===id),c=catalog(id);
   if(!a?.installed||!a.acpReady)errors.push(`${name(id)} needs an installed harness and ACP adapter.`);
-  else if(!c)wait.push(`Checking ${name(id)} models…`);
+  else if(!c)wait.push(`Discover ${name(id)} models in Settings.`);
   else if(c.error)errors.push(`${name(id)} model discovery failed. Refresh it in Settings.`);
   else{
    const selected=(rule.models||[]).filter(m=>m.worker===id),models=selected.length?selected:[{id:c.currentModel||''}];
    for(const m of models){const meta=c.models?.find(x=>x.id===m.id),level=m.reasoning??rule.reasoningByWorker?.[id]??rule.reasoning??'';
+    if(!selected.length&&c.harnessDefault&&c.protocolVerified){if(level&&!defaultThinking(c).some(([value])=>value===level))errors.push(`${name(id)} does not advertise ${level} thinking for its default model.`);continue;}
     if(!meta)errors.push(m.id?`${name(id)} no longer advertises ${m.id}.`:`Choose a model for ${name(id)}; no default was found.`);
     else if(level){if(meta.reasoningError)errors.push(`${name(id)} thinking controls could not be verified.`);else if(!Array.isArray(meta.reasoning))wait.push(`Checking ${name(id)} thinking levels…`);else if(!meta.reasoning.some(v=>(typeof v==='string'?v:v.value)===level))errors.push(`${name(id)} does not advertise ${level} thinking for ${m.id}.`);}
    }

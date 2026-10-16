@@ -1,12 +1,18 @@
+import {parentSetup,workerSetup,failedDiscovery} from './setup-state.mjs';
 import {DEFAULT_TASKS,uniqueTaskName} from './task-library.mjs';
 import {ruleInstruction} from './rule-prompt.mjs';
-import {ruleReadiness} from './rule-validation.mjs';
+import {ruleReadiness,defaultThinking} from './rule-validation.mjs';
 'use strict';
 const $=s=>document.querySelector(s),names={codex:'Codex',claude:'Claude Code',pi:'Pi',opencode:'OpenCode',deepseek:'DeepSeek'};
 let taskState={tasks:structuredClone(DEFAULT_TASKS),revision:null},tasksLoading=false;
 const modelProbes=new Map();
 const catalogs=new Map(),probing=new Set(),cards=new Map(),installing=new Set();let setupStatus=null,setupLoading=false,setupError='',setupRevision=0;let baseRevision,appliedRevision,savedSnapshot,actionInProgress='';let agents=[],config={version:1,routes:[]},loaded=false,dirty=false,busy=false,connections={};
-let setupCheckedAt=null;const promptPreviews=new Set();
+let setupCheckedAt=null,inventoryCheckedAt=null,inventoryRefreshing=false,inventoryError='';const promptPreviews=new Set(),openAgentDetails=new Set();
+try{const cached=JSON.parse(localStorage.getItem('bridge-inventory-v1')||'null');if(cached?.agents?.length){agents=cached.agents;connections=cached.connections||{};inventoryCheckedAt=cached.checkedAt;}}catch{}
+function refreshAgentNames(){for(const agent of agents)names[agent.id]=agent.name||agent.id;}
+refreshAgentNames();
+function harnessEntries(role){return agents.filter(a=>role!=='parent'||a.nativeParent!==false&&a.id!=='claude').map(a=>({value:a.id,label:a.name||a.id,detail:role==='parent'?parentSetup(a,connections[a.id]).label:workerSetup(a,catalogs.get(a.id)).label}));}
+function rememberInventory(){refreshAgentNames();inventoryCheckedAt=new Date().toISOString();try{localStorage.setItem('bridge-inventory-v1',JSON.stringify({agents:agents.map(({id,name,installed,acpReady,version,compatibility,nativeParent,registry,worker})=>({id,name,installed,acpReady,version,compatibility,nativeParent,registry,worker})),connections,checkedAt:inventoryCheckedAt}));}catch{}}
 let showPromptPreviews=false;
 try{showPromptPreviews=localStorage.getItem('bridge-show-prompt-previews')==='true';}catch{}
 document.body.classList.toggle("macos",/Mac/.test(navigator.platform));
@@ -34,7 +40,7 @@ function infoButton(label,text){
  wrap.addEventListener('pointerenter',place);wrap.addEventListener('focusin',place);button.addEventListener('click',()=>{const open=wrap.classList.toggle('tip-open');button.setAttribute('aria-expanded',String(open));place();});wrap.addEventListener('keydown',event=>{if(event.key==='Escape'){wrap.classList.remove('tip-open');button.setAttribute('aria-expanded','false');button.blur();event.stopPropagation();}});return wrap;
 }
 function connectionText(){
- $('#agent-section-info').replaceChildren(infoButton('How agent connections work','Each connected parent uses its own project folder. Applied rules refresh each turn after its integration is loaded. Followups retain the same worker conversation; messages sent while busy queue for its next turn. Click a model count to refresh discovery.'));
+ $('#agent-section-info').replaceChildren(infoButton('How agent connections work','Orchestrator status checks the integration files and, for Codex, hook approval when available. Configured does not prove that an existing session has loaded the integration. Subagent status checks for an ACP endpoint, not model access. Expand an agent for version details and next steps.'));
  $('#mcp-section-info').replaceChildren(infoButton('About MCP setup','Install Bridge’s MCP configuration tools for a supported harness, or copy the configuration for a manual setup. MCP configuration access is separate from native task delegation.'));
 }
 function select(label,entries,value,callback){
@@ -50,6 +56,7 @@ function select(label,entries,value,callback){
 function workerIds(r){return r.workers.length?r.workers:agents.filter(a=>a.installed&&a.acpReady).map(a=>a.id);}
 function levels(worker,model){
  const c=catalogs.get(worker),m=c?.models.find(m=>m.id===(model||c.currentModel));
+ if(!model&&c?.harnessDefault)return defaultThinking(c);
  return(m?.reasoning||[]).map(v=>typeof v==='string'?[v,v]:[String(v.value),v.name||String(v.value)]);
 }
 // Some ACP catalogs expose controls only after selecting a model. Warm selected
@@ -72,9 +79,9 @@ async function probeThinking(worker,model){
  modelProbes.set(key,pending);try{return await pending;}finally{modelProbes.delete(key);refreshCards();}
 }
 function thinking(r){const alternatives=workerIds(r).flatMap(worker=>{const ms=r.models.filter(m=>m.worker===worker);return(ms.length?ms:[{id:''}]).map(m=>levels(worker,m.id));});if(!alternatives.length)return[];return alternatives[0].filter(([v])=>alternatives.every(opts=>opts.some(([id])=>id===v)));}
-async function probe(id){if(probing.has(id))return;probing.add(id);renderAgents();refreshCards();try{const c=await api('/api/probe',{agentId:id});catalogs.set(id,{...c,models:(c.models||[]).map(m=>typeof m==='string'?{id:m,name:m}:m)});}catch(e){catalogs.set(id,{models:[],error:e.message});}finally{probing.delete(id);renderAgents();refreshCards();}}
+async function probe(id){if(probing.has(id))return;probing.add(id);renderAgents();refreshCards();try{const c=await api('/api/probe',{agentId:id});catalogs.set(id,c.error?failedDiscovery(catalogs.get(id),c.error):{...c,models:(c.models||[]).map(m=>typeof m==='string'?{id:m,name:m}:m)});}catch(e){catalogs.set(id,failedDiscovery(catalogs.get(id),e.message));}finally{probing.delete(id);renderAgents();refreshCards();}}
 function refreshCards(){if(pendingRemoval&&!pendingRemoval.button.isConnected)cancelRemoval();for(const card of cards.values())card.refresh();}
-function ensureCatalogs(r){for(const id of workerIds(r))if(!catalogs.has(id)&&!probing.has(id))probe(id);}
+function ensureCatalogs(r){const selected=r.workers.length?r.workers:r.models.length?[...new Set(r.models.map(m=>m.worker))]:agents.filter(a=>a.installed&&a.acpReady&&a.nativeParent!==false&&a.id!=='claude').map(a=>a.id);for(const id of selected)if(agents.some(a=>a.id===id&&a.acpReady)&&!catalogs.has(id)&&!probing.has(id))probe(id);}
 function modelKey(m){return JSON.stringify([m.worker,m.id]);}
 function modelLabel(m){const c=catalogs.get(m.worker);return`${names[m.worker]||m.worker} / ${c?.models.find(o=>o.id===m.id)?.name||m.id}`;}
 function modelEntries(r){const result=[];for(const id of workerIds(r)){const c=catalogs.get(id);for(const m of c?.models||[]){const provider=m.provider?.name||m.provider?.id||m.provider||(m.id.includes('/')?m.id.split('/')[0]:'Catalog');result.push({value:modelKey({worker:id,id:m.id}),label:m.name||m.id,chip:`${names[id]} / ${m.name||m.id}`,detail:m.id,group:`${names[id]} · ${provider}`});}}for(const m of r.models)if(!result.some(o=>o.value===modelKey(m)))result.push({value:modelKey(m),label:m.id,chip:modelLabel(m),detail:'Saved selection · not in discovered catalog',group:names[m.worker]||m.worker});return result;}
@@ -142,6 +149,7 @@ function positionPopover(popup,button){
  popup.style.top=`${Math.max(16,saved.side==='below'?anchor.bottom+gap:anchor.top-height-gap)}px`;
 }
 function compactModelName(worker,model){
+ if(!model)return 'default model';
  const catalog=catalogs.get(worker)?.models.find(m=>m.id===model),name=catalog?.name||model;
  return name.split(' · ')[0].split('/').at(-1);
 }
@@ -154,7 +162,7 @@ function workerEditor(r,id,index,updated,chooseWorkers){
  search.type='search';search.placeholder='Search models or providers…';search.setAttribute('aria-label',`Search ${names[id]} models for rule ${index+1}`);
  options.setAttribute('role','group');options.setAttribute('aria-label',`${names[id]} model alternatives`);hint.append(infoButton('How model alternatives work','Select one or more models. The parent picks one per task. Auto uses the harness default. Click a thinking value to adjust that model. Removing the last selected model restores Auto.'));
  const done=el('button','text-button picker-done','Done');done.type='button';hint.append(done);
- const harnessPicker=multiPicker({label:`Choose harnesses for rule ${index+1}`,auto:'Auto · any available harness',embedded:true,onClose:()=>{close();harness.focus();},entries:()=>Object.keys(names).map(worker=>({value:worker,label:names[worker],detail:agents.find(a=>a.id===worker)?.installed?'Installed':'Not detected'})),values:()=>r.workers,choose:chooseWorkers});
+ const harnessPicker=multiPicker({label:`Choose harnesses for rule ${index+1}`,auto:'Auto · any available harness',embedded:true,onClose:()=>{close();harness.focus();},entries:()=>harnessEntries('worker'),values:()=>r.workers,choose:chooseWorkers});
  const harnessMenu=el('div','worker-popover harness-menu');harnessMenu.hidden=true;harnessMenu.append(harnessPicker.element);
  function focusModels(){summary.querySelector('button')?.focus({preventScroll:true});}
  function closeThinking(){thinkingId=null;fillModels();}
@@ -169,17 +177,17 @@ function workerEditor(r,id,index,updated,chooseWorkers){
  const thinkingText=(model)=>{const value=effectiveReasoning(r,id,model);return value?value.charAt(0).toUpperCase()+value.slice(1):'Auto';};
  function openThinking(model){
   if(thinkingId===model){closeThinking();return;}thinkingId=model;
-  void probeThinking(id,model).catch(()=>{});fillModels();position();
+  const requested=model||catalogs.get(id)?.currentModel;if(requested)void probeThinking(id,requested).catch(()=>{});fillModels();position();
  }
  function thinkingRow(model){
   const section=el('div','model-thinking-details'),line=el('div','thinking-field'),label=el('label','','Thinking'),current=effectiveReasoning(r,id,model),choices=levels(id,model);
-  const meta=catalogs.get(id)?.models.find(m=>m.id===model),fetching=!Array.isArray(meta?.reasoning)&&!meta?.reasoningError;
+  const catalog=catalogs.get(id),meta=!model&&catalog?.harnessDefault?{reasoning:defaultThinking(catalog).map(([value])=>value)}:catalog?.models.find(m=>m.id===(model||catalog.currentModel)),fetching=!Array.isArray(meta?.reasoning)&&!meta?.reasoningError;
   line.append(label);
   if(!meta){line.append(el('span','thinking-fetching','Unavailable'));}
   else if(fetching){const status=el('span','thinking-fetching');status.setAttribute('role','status');status.setAttribute('aria-label',`Fetching thinking levels for ${compactModelName(id,model)}`);status.append(el('span','install-spinner'),el('span','','Fetching'));line.append(status);}
   else if(meta?.reasoningError){const retry=el('button','thinking-retry','Retry');retry.type='button';retry.title=meta.reasoningError;retry.setAttribute('aria-label',`Retry thinking levels for ${compactModelName(id,model)}`);retry.addEventListener('click',()=>{delete meta.reasoningError;void probeThinking(id,model).catch(()=>{});fillModels();});line.append(retry);}
   else{
-   const control=select(`Thinking level for ${compactModelName(id,model)} in ${names[id]}`,[['','Auto'],...choices.map(([value,name])=>[value,name.charAt(0).toUpperCase()+name.slice(1)])],current,value=>{const selected=r.models.find(m=>m.worker===id&&m.id===model);if(selected){selected.reasoning=value;changed(r);updated();}});
+   const control=select(`Thinking level for ${compactModelName(id,model)} in ${names[id]}`,[['','Auto'],...choices.map(([value,name])=>[value,name.charAt(0).toUpperCase()+name.slice(1)])],current,value=>{const selected=r.models.find(m=>m.worker===id&&m.id===model);if(!model){r.reasoningByWorker[id]=value;changed(r);updated();}else if(selected){selected.reasoning=value;changed(r);updated();}});
    control.classList.add('thinking-select');control.trigger.dataset.modelControl=`level:${model}`;control.trigger.id=`thinking-${crypto.randomUUID()}`;label.htmlFor=control.trigger.id;
    if(current&&!choices.some(([value])=>value===current))control.setChoices([['','Auto'],...choices.map(([value,name])=>[value,name]),[current,`${thinkingText(model)} · saved`,true]],current);
    if(!choices.length)control.trigger.title='No adjustable levels advertised. Auto uses the model’s default.';
@@ -190,7 +198,7 @@ function workerEditor(r,id,index,updated,chooseWorkers){
  function fillModels(){
   const previousScroll=options.scrollTop,focused=options.contains(document.activeElement)?document.activeElement?.dataset.modelControl:null,q=search.value.trim().toLowerCase(),catalog=catalogs.get(id),models=[...(catalog?.models||[])];
   for(const selected of r.models.filter(m=>m.worker===id))if(!models.some(m=>m.id===selected.id))models.push({id:selected.id,name:selected.id,saved:true});
-  options.replaceChildren();const auto=el('button','model-option auto-model'+(!r.models.some(m=>m.worker===id)?' selected':''),'Auto · harness default');auto.type='button';auto.setAttribute('aria-pressed',String(!r.models.some(m=>m.worker===id)));auto.dataset.modelControl='auto';auto.addEventListener('click',()=>{r.models=r.models.filter(m=>m.worker!==id);thinkingId=null;changed(r);updated();});options.append(auto);
+  options.replaceChildren();const auto=el('button','model-option auto-model'+(!r.models.some(m=>m.worker===id)?' selected':''),'Auto · harness default');auto.type='button';auto.setAttribute('aria-pressed',String(!r.models.some(m=>m.worker===id)));auto.dataset.modelControl='auto';auto.addEventListener('click',()=>{r.models=r.models.filter(m=>m.worker!==id);thinkingId=null;changed(r);updated();});const defaultSelected=!r.models.some(m=>m.worker===id),defaultRow=el('div','model-select-row'+(defaultSelected?' selected':'')+(thinkingId===''?' expanded':'')),defaultTop=el('div','model-row-top');defaultTop.append(auto);if(defaultSelected&&catalog&&!catalog.error){const control=el('button','model-thinking-button',thinkingText(''));control.type='button';control.setAttribute('aria-label',`Thinking for ${names[id]} default model: ${thinkingText('')}`);control.setAttribute('aria-expanded',String(thinkingId===''));control.addEventListener('click',()=>openThinking(''));defaultTop.append(control);}defaultRow.append(defaultTop);if(defaultSelected&&thinkingId==='')defaultRow.append(thinkingRow(''));options.append(defaultRow);
   const groups=new Map();for(const model of models){if(q&&!`${model.name} ${model.id} ${providerName(model)}`.toLowerCase().includes(q))continue;const group=providerName(model);if(!groups.has(group))groups.set(group,[]);groups.get(group).push(model);}
   const isSelected=model=>r.models.some(m=>m.worker===id&&m.id===model.id);
   for(const [provider,list]of [...groups].sort((a,b)=>Number(b[1].some(isSelected))-Number(a[1].some(isSelected)))){list.sort((a,b)=>Number(isSelected(b))-Number(isSelected(a)));options.append(el('div','option-group',provider));for(const model of list){
@@ -198,7 +206,7 @@ function workerEditor(r,id,index,updated,chooseWorkers){
    if(selected){const control=el('button','model-thinking-button',thinkingText(model.id));control.type='button';control.dataset.modelControl=`thinking:${model.id}`;control.setAttribute('aria-label',`Thinking for ${model.name||model.id}: ${thinkingText(model.id)}`);control.setAttribute('aria-expanded',String(thinkingId===model.id));control.addEventListener('click',()=>void openThinking(model.id));top.append(control);}
    row.append(top);if(selected&&thinkingId===model.id)row.append(thinkingRow(model.id));options.append(row);
   }}
-  if(!groups.size)options.append(el('p','picker-empty',probing.has(id)?'Discovering models…':catalog?.error||'No matching models.'));options.scrollTop=previousScroll;if(focused)Array.from(options.querySelectorAll('[data-model-control]')).find(b=>b.dataset.modelControl===focused)?.focus({preventScroll:true});
+  if(!groups.size)options.append(el('p','picker-empty',probing.has(id)?'Discovering models…':catalog?.error||(catalog?.harnessDefault?'This harness manages its own model. Auto keeps that choice.':'No matching models.')));options.scrollTop=previousScroll;if(focused)Array.from(options.querySelectorAll('[data-model-control]')).find(b=>b.dataset.modelControl===focused)?.focus({preventScroll:true});
  }
  function refresh(){
   const selected=r.models.filter(m=>m.worker===id),focused=summary.contains(document.activeElement)?document.activeElement?.dataset.summaryControl:null;summary.replaceChildren();
@@ -209,7 +217,7 @@ function workerEditor(r,id,index,updated,chooseWorkers){
   if(selected.length>2){const more=el('button','model-more',`+${selected.length-2}`);more.type='button';more.setAttribute('aria-label',`Show all ${selected.length} ${names[id]} models`);more.addEventListener('click',openModels);summary.append(more);}
   if(focused)Array.from(summary.querySelectorAll('button')).find(b=>b.dataset.summaryControl===focused)?.focus({preventScroll:true});fillModels();harnessPicker.refresh();
  }
- wrap.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();if(thinkingId){const id=thinkingId;closeThinking();Array.from(options.querySelectorAll('button')).find(b=>b.dataset.modelControl===`thinking:${id}`)?.focus();}else{close();focusModels();}}});
+ wrap.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();if(thinkingId!==null){const id=thinkingId;closeThinking();Array.from(options.querySelectorAll('button')).find(b=>b.dataset.modelControl===`thinking:${id}`)?.focus();}else{close();focusModels();}}});
  wrap.addEventListener('pointerenter',()=>{const line=wrap.closest('.sentence')?.getBoundingClientRect(),box=wrap.getBoundingClientRect();if(line)wrap.style.setProperty('--worker-line-space',`${Math.max(box.width,Math.floor(line.right-box.left)-1)}px`);wrap.style.setProperty('--inline-reveal',`${Math.min(450,window.innerWidth-200)}px`);wrap.classList.add('is-revealed');});
  wrap.addEventListener('pointerleave',()=>wrap.classList.remove('is-revealed'));
  join.setAttribute('aria-hidden','true');join.append(slash,withWord);popup.append(search,options,hint);wrap.append(harnessLabel,join,summary,harnessMenu,popup);wrap.closeEditor=close;wrap.closeThinking=closeThinking;wrap.positionThinking=position;refresh();return{element:wrap,refresh};
@@ -223,9 +231,9 @@ function renderRules(){
   toggle.type='checkbox';toggle.checked=r.enabled!==false;toggle.setAttribute('aria-label',`Enable rule ${i+1}`);toggle.addEventListener('change',()=>{r.enabled=toggle.checked&&ruleReadiness(r,agents,catalogs).valid;card.classList.toggle('off',!r.enabled);changed(r);refresh();});
   const remove=removalButton(`Remove rule ${i+1}`,card,()=>{config.routes.splice(i,1);changed();renderRules();},{wholeRule:true});remove.classList.add('rule-remove');const promptButton=el('button','prompt-button','Aa');promptButton.type='button';promptButton.title=`Preview agent prompt for rule ${i+1}`;promptButton.setAttribute('aria-label',`Prompt preview for rule ${i+1}`);promptButton.setAttribute('aria-pressed',String(promptPreviews.has(r.id)));promptButton.addEventListener('click',()=>{if(promptPreviews.has(r.id))promptPreviews.delete(r.id);else promptPreviews.add(r.id);refresh();});tools.append(promptButton,toggle,remove);const validation=el('span','rule-validation');validation.setAttribute('role','status');head.append(index,validation,tools);
   const pane=el('div','rule-pane'),preview=el('pre','rule-prompt prompt-text');preview.tabIndex=0;preview.setAttribute('role','region');preview.setAttribute('aria-label',`Agent prompt for rule ${i+1}`);preview.hidden=!promptPreviews.has(r.id);
-  const sentence=el('div','sentence'),word=text=>el('span','word',text),agentEntries=()=>Object.keys(names).map(id=>({value:id,label:names[id],detail:agents.find(a=>a.id===id)?.installed?'Installed':'Not detected'}));
-  const parent=multiPicker({label:`Parent agents for rule ${i+1}`,auto:'any agent',entries:agentEntries,values:()=>r.parents,choose:values=>{r.parents=values;changed(r);refresh();}});
-  const worker=multiPicker({label:`Worker harnesses for rule ${i+1}`,auto:'any available harness',entries:agentEntries,values:()=>r.workers,choose:(values,{removed}={})=>{
+  const sentence=el('div','sentence'),word=text=>el('span','word',text);
+  const parent=multiPicker({label:`Parent agents for rule ${i+1}`,auto:'any agent',entries:()=>harnessEntries('parent'),values:()=>r.parents,choose:values=>{r.parents=values;changed(r);refresh();}});
+  const worker=multiPicker({label:`Worker harnesses for rule ${i+1}`,auto:'any available harness',entries:()=>harnessEntries('worker'),values:()=>r.workers,choose:(values,{removed}={})=>{
    if(removed){r.models=r.models.filter(m=>m.worker!==removed);delete r.reasoningByWorker[removed];}r.workers=values;r.models=r.models.filter(m=>!values.length||values.includes(m.worker));if(values.length)r.reasoningByWorker=Object.fromEntries(Object.entries(r.reasoningByWorker||{}).filter(([id])=>values.includes(id)));changed(r);renderWorkerEditors();refresh();ensureCatalogs(r);
   }});
   const taskChoices=()=>[['Auto','any task'],...visibleTasks().map(t=>[t.name,t.name]),['__bridge_add_task__','＋ Add new task',!taskState.revision]];
@@ -249,7 +257,8 @@ function renderRules(){
    taskSelect.setChoices(taskChoices(),r.task);parent.refresh();worker.refresh();for(const editor of editors)editor.refresh();
    const previewing=showPromptPreviews&&promptPreviews.has(r.id);promptButton.hidden=!showPromptPreviews;pane.classList.toggle('show-prompt',previewing);sentence.inert=previewing;sentence.setAttribute('aria-hidden',String(previewing));preview.hidden=!previewing;preview.textContent=ruleInstruction(r);promptButton.setAttribute('aria-pressed',String(previewing));
    ensureThinkingChecks(r);
-   const result=ruleReadiness(r,agents,catalogs);if(r.enabled&&!result.valid&&!result.pending){r.enabled=false;changed(r);}
+   // Refreshing discovery must never change the user's enabled intent.
+   const result=ruleReadiness(r,agents,catalogs);
    toggle.checked=r.enabled;toggle.disabled=card.classList.contains('deletion-pending')||(!r.enabled&&!result.valid);toggle.title=result.valid?'Enable or disable this rule':result.message;card.classList.toggle('off',!r.enabled);
    validation.textContent=result.valid?(r.enabled?'':'Off'):result.message;validation.classList.toggle('invalid',!result.valid&&!result.pending);
 
@@ -258,15 +267,24 @@ function renderRules(){
  });controls();
 }
 function renderAgents(){
- const root=$('#agents');root.replaceChildren();$('#agent-count').textContent=agents.filter(agent=>agent.installed).length;
- for(const agent of agents){
-  const c=catalogs.get(agent.id),connection=connections[agent.id]||{},tile=el('article','detected-tile'+(!agent.installed?' not-detected':''));
-  const state=!agent.installed?'Not found':connection.current&&connection.trustRequired===true?'Review hooks':connection.current&&connection.hooksDisabled?'Hooks disabled':connection.current&&connection.trustRequired===null?'Configured':connection.current?'Connected':connection.mode==='managed'?'Managed sessions':connection.mode==='unsupported'?'Setup unavailable':'Not connected';
-  const details=[agent.installed?`Installed version: ${agent.version||'unknown'}`:'This harness was not detected.',`Worker: ${agent.acpReady?'ACP endpoint available':agent.installed?'ACP adapter needed':'not installed'}`,`Parent: ${state.toLowerCase()}`,connection.message,agent.compatibility?.supported&&!agent.compatibility?.verified?'This version family is supported; this exact release has not been live-tested.':null,c?.error,c?.currentModel?`Current model: ${c.models.find(model=>model.id===c.currentModel)?.name||c.currentModel}`:null].filter(Boolean).join('\n');
-  const top=el('div','detected-top');top.append(el('strong','',agent.name||names[agent.id]),infoButton(`${agent.name||names[agent.id]} connection details`,details));
-  const status=el('span','detected-status'+(connection.current&&connection.trustRequired!==null&&!connection.trustRequired&&!connection.hooksDisabled?' connected':''),state),discover=el('button','catalog-button',probing.has(agent.id)?'Discovering…':c?.models.length?`${c.models.length} models ↻`:'Models ↻');discover.type='button';discover.disabled=!agent.installed||probing.has(agent.id);discover.setAttribute('aria-label',`Discover models for ${agent.name||names[agent.id]}`);discover.addEventListener('click',()=>probe(agent.id));
-  const bottom=el('div','detected-bottom');bottom.append(status,discover);tile.append(top,bottom);root.append(tile);
+ const root=$('#agents'),more=$('#catalog-agents'),focusKey=document.activeElement?.dataset?.agentAction;root.replaceChildren();more.replaceChildren();$('#agent-count').textContent=agents.filter(agent=>agent.installed).length+' detected';
+ const catalogAgents=agents.filter(a=>!a.installed&&a.nativeParent===false);$('#catalog-count').textContent=String(catalogAgents.length);$('#agent-catalog').hidden=!catalogAgents.length;const registry=agents.find(a=>a.registry?.source==='acpx')?.registry;$('#catalog-source').textContent=registry?`Launch recipes from acpx ${registry.version}. Install an agent’s ACP launcher separately, then refresh. Discovery does not install software or verify model access.`:'';
+ for(const agent of [...agents.filter(a=>!catalogAgents.includes(a)),...catalogAgents.sort((a,b)=>a.name.localeCompare(b.name))]){
+  const connection=connections[agent.id]||{},parent=parentSetup(agent,connection),c=catalogs.get(agent.id),worker=workerSetup(agent,c),name=agent.name||names[agent.id];
+  const row=el('details','agent-row'+(!agent.installed?' not-detected':'')),summary=el('summary','agent-summary'),identity=el('span','agent-identity');row.open=openAgentDetails.has(agent.id);row.addEventListener('toggle',()=>{if(!row.isConnected)return;row.open?openAgentDetails.add(agent.id):openAgentDetails.delete(agent.id);});
+  identity.append(el('strong','',name),el('span','agent-version',agent.installed?agent.version||'Version unknown':'Not detected'));
+  const cell=(value,label)=>{const n=el('span','agent-state '+value.tone,value.label);n.dataset.label=label;return n;};
+  summary.append(identity,cell(parent,'Orchestrator'),cell(worker,'Subagent'),el('span','settings-chevron'));summary.lastChild.setAttribute('aria-hidden','true');
+  const detail=el('div','agent-detail'),guidance=el('div','agent-guidance'),p=el('p','',parent.help),w=el('p','',worker.help);guidance.append(el('span','settings-kicker','Orchestrator'),p,el('span','settings-kicker','Subagent'),w);
+  if(parent.needsApply){const back=el('button','settings-text-action','Review rules →');back.type='button';back.addEventListener('click',()=>showSettings(false));guidance.insertBefore(back,guidance.children[2]);}
+  const modelArea=el('div','agent-models'),modelCount=el('strong','',probing.has(agent.id)?'Checking models…':c?.models.length?`${c.models.length} advertised model${c.models.length===1?'':'s'}`:'Model catalog');
+  const discover=el('button','catalog-button',probing.has(agent.id)?'Refreshing…':c?'Refresh models':'Discover models');discover.type='button';discover.disabled=!agent.acpReady||probing.has(agent.id);discover.dataset.agentAction=agent.id+'-models';discover.setAttribute('aria-label',`Discover models for ${name}`);discover.addEventListener('click',()=>probe(agent.id));
+  modelArea.append(modelCount,el('p','',c?.error?(c.stale?'Refresh failed. Showing the previous model list.':'Model discovery failed. Try refreshing.'):'Lists the models this harness advertises. Availability depends on your provider.'),discover);
+  if(c?.error){const error=el('p','model-error',c.error);modelArea.append(error);}
+  const family=agent.compatibility?.family;modelArea.append(el('p','version-evidence',family?`${family} · ${agent.compatibility.verified?'This exact version has been tested.':'This version family is supported; this release has not been tested.'}`:agent.nativeParent===false?'ACP worker integration · no native orchestrator connection.':'No tested parent compatibility handler.'));
+  detail.append(guidance,modelArea);row.append(summary,detail);(catalogAgents.includes(agent)?more:root).append(row);
  }
+ if(focusKey)$('#agents-panel').querySelector(`[data-agent-action="${focusKey}"]`)?.focus({preventScroll:true});
 }
 function setupFeedback(text,error=false){const node=$('#setup-feedback');node.textContent=text;node.hidden=!text;node.classList.toggle('error',error);}
 async function loadSetup(){
@@ -283,7 +301,7 @@ async function copyConfig(entry){
  catch{previewConfig(entry);const input=$('#config-text');input.focus();input.select();setupFeedback(`Clipboard access is unavailable. The config is selected below; press ${/Mac/i.test(navigator.platform)?'⌘C':'Ctrl+C'} to copy it.`,true);}
 }
 function renderSetup(){
- const status=$('#setup-freshness');status.textContent=setupLoading?(setupStatus?'Refreshing · showing last checked setup':'Checking setup…'):setupError?'Could not refresh · showing last checked setup':setupCheckedAt?'Checked '+new Date(setupCheckedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+ const status=$('#setup-freshness'),refreshing=setupLoading||inventoryRefreshing,failed=setupError||inventoryError,checked=inventoryCheckedAt||setupCheckedAt;status.textContent=refreshing?(checked?'Refreshing · previous status stays visible':'Checking this device…'):failed?'Refresh incomplete · previous status stays visible':checked?'Checked '+new Date(checked).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
  {
   const kind='mcp';
   const root=$(`#setup-${kind}`);root.replaceChildren();const entries=setupStatus?.[kind]?.entries||[];
@@ -293,8 +311,10 @@ function renderSetup(){
    button.type='button';const update=entry.installed&&entry.current===false;button.disabled=!entry.available||(entry.installed&&!update)||installing.size>0||setupLoading;button.setAttribute('aria-label',pending?`Installing ${name} MCP`:update?`Update ${name} MCP`:entry.installed?`${name} MCP installed`:`Install MCP for ${name}`);button.setAttribute('aria-busy',String(pending));
    const marker=el('span',pending?'install-spinner':entry.installed?'install-check':'install-plus',pending?'':entry.installed?'✓':entry.available?'+':'—');marker.setAttribute('aria-hidden','true');button.append(el('span','',name),marker);button.addEventListener('click',()=>installSetup(kind,entry));
    const description=entry.reason||(entry.installed?'Installed.':entry.available?`Install MCP configuration for ${name}.`:'Automatic installation is unavailable for this harness.');
-   const top=el('div','setup-tile-top');button.title=description;tile.title=description;top.append(button);tile.append(top);if(update)button.insertBefore(el('span','setup-update','Update'),marker);
-   if(kind==='mcp'&&configText(entry)){const actions=el('div','setup-copy-actions'),copy=el('button','setup-copy','Copy config'),preview=el('button','setup-preview','Preview');copy.type=preview.type='button';copy.setAttribute('aria-label',`Copy ${name} MCP config`);preview.setAttribute('aria-label',`Preview ${name} MCP config`);copy.addEventListener('click',()=>copyConfig(entry));preview.addEventListener('click',()=>previewConfig(entry));actions.append(copy,preview);tile.append(actions);}
+   const top=el('div','setup-tile-top');button.title=description;top.append(button);tile.append(top);if(update)button.insertBefore(el('span','setup-update','Update'),marker);
+   tile.append(el('p','mcp-state',pending?'Installing…':update?'Configuration update needed':entry.installed?'Configuration installed':entry.available?'Click to install':entry.reason||'Unavailable'));
+   if(entry.installed||(!entry.available&&entry.reason))tile.append(el('p','mcp-next-step',entry.installed?description:''));
+   if(kind==='mcp'&&configText(entry)){const manual=el('details','mcp-manual'),manualLabel=el('summary','','Manual setup'),actions=el('div','setup-copy-actions'),copy=el('button','setup-copy','Copy config'),preview=el('button','setup-preview','Preview');manual.append(manualLabel);copy.type=preview.type='button';copy.setAttribute('aria-label',`Copy ${name} MCP config`);preview.setAttribute('aria-label',`Preview ${name} MCP config`);copy.addEventListener('click',()=>copyConfig(entry));preview.addEventListener('click',()=>previewConfig(entry));actions.append(copy,preview);manual.append(actions);tile.append(manual);}
    root.append(tile);
   }
  }
@@ -306,13 +326,13 @@ async function installSetup(kind,entry){
  catch(error){setupFeedback(error.message||'Installation failed.',true);}
  finally{installing.delete(key);renderSetup();}
 }
-async function load(){busy=true;$('#refresh').disabled=true;try{const state=await api('/api/state');agents=state.agents||[];connections=state.connections||{};connectionText();if(!loaded||!dirty){const drafts=!loaded&&dirty?config.routes:[];config={version:1,routes:[],...state.config};config.routes=[...config.routes,...drafts].map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);if(state.preservedDraft){$('#save-conflict').hidden=false;$('#save-conflict').open=true;$('#draft-text').value=JSON.stringify(state.preservedDraft,null,2);notice('Rules were applied outside this app. The latest rules are loaded; your earlier saved draft is preserved below.');}}loaded=true;void loadSetup();$('#connection').textContent='On your machine';renderAgents();renderRules();renderTaskLibrary();for(const r of config.routes)ensureCatalogs(r);}catch(e){notice(String(e.message||e),true);$('#connection').textContent='Connection unavailable';}finally{busy=false;$('#refresh').disabled=false;controls();}}
+async function load(){if(inventoryRefreshing)return;const previousError=inventoryError;busy=true;inventoryRefreshing=true;inventoryError='';$('#refresh').disabled=true;renderSetup();try{const state=await api('/api/state');agents=state.agents||[];connections=state.connections||{};rememberInventory();connectionText();if(!loaded||!dirty){const drafts=!loaded&&dirty?config.routes:[];config={version:1,routes:[],...state.config};config.routes=[...config.routes,...drafts].map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);if(state.preservedDraft){$('#save-conflict').hidden=false;$('#save-conflict').open=true;$('#draft-text').value=JSON.stringify(state.preservedDraft,null,2);notice('Rules were applied outside this app. The latest rules are loaded; your earlier saved draft is preserved below.');}}loaded=true;if(previousError&&$('#notice').textContent===previousError)notice('');void loadSetup();void loadTasks();$('#connection').textContent='On this device';renderAgents();renderRules();renderTaskLibrary();for(const r of config.routes)ensureCatalogs(r);}catch(e){inventoryError=String(e.message||e);notice(inventoryError,true);$('#connection').textContent='Could not refresh';}finally{busy=false;inventoryRefreshing=false;$('#refresh').disabled=false;renderSetup();controls();}}
 function showConflict(){
  const panel=$('#save-conflict');panel.hidden=false;panel.open=true;$('#draft-text').value=JSON.stringify(config,null,2);notice('Rules changed outside this app. Your draft is preserved below. Load the latest rules, then reapply the changes you want to keep.',true);
 }
 async function loadLatest(){
  if(busy)return;busy=true;controls();$('#load-latest').disabled=true;
- try{const state=await api('/api/state');$('#draft-text').value=JSON.stringify(config,null,2);config={version:1,routes:[],...state.config};config.routes=config.routes.map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);agents=state.agents||[];connections=state.connections||{};dirty=false;loaded=true;connectionText();renderAgents();renderRules();renderTaskLibrary();for(const rule of config.routes)ensureCatalogs(rule);notice('Latest rules loaded. Your previous draft remains below for reference while you reapply your changes.');}
+ try{const state=await api('/api/state');$('#draft-text').value=JSON.stringify(config,null,2);config={version:1,routes:[],...state.config};config.routes=config.routes.map(normalize);config.workspace='';config.inheritWorkspace=true;baseRevision=state.revision;appliedRevision=state.activeRevision;savedSnapshot=JSON.stringify(config);agents=state.agents||[];connections=state.connections||{};rememberInventory();dirty=false;loaded=true;connectionText();renderAgents();renderRules();renderTaskLibrary();for(const rule of config.routes)ensureCatalogs(rule);notice('Latest rules loaded. Your previous draft remains below for reference while you reapply your changes.');}
  catch(error){notice(error.message||'Could not load the latest rules. Your draft is unchanged.',true);}
  finally{busy=false;$('#load-latest').disabled=false;controls();}
 }
@@ -388,4 +408,4 @@ $('#show-prompt-previews').addEventListener('change',event=>{
 });
 $('#prompt-preview-info').append(infoButton('About prompt previews','Show an Aa button on each rule to inspect its generated instruction. Read only; each preview stays within that rule. This display preference is saved automatically on this device.'));
 
-$('#add').addEventListener('click',()=>{config.routes.push(normalize({id:crypto.randomUUID(),parents:[],workers:[],models:[],reasoning:'',task:'Auto',enabled:false}));changed();renderRules();ensureCatalogs(config.routes.at(-1));});$('#save-only').addEventListener('click',()=>save(false));$('#save-apply').addEventListener('click',()=>save(true));$('#refresh').addEventListener('click',load);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const active=[...document.querySelectorAll('.worker-editor')].find(w=>w.querySelector('.model-select-row.expanded'));if(active)active.closeThinking?.();else for(const w of document.querySelectorAll('.worker-editor'))w.closeEditor?.();}});document.addEventListener('scroll',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();},true);window.addEventListener('resize',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();});document.addEventListener('click',e=>{for(const s of document.querySelectorAll('.themed-select'))if(!e.composedPath().includes(s))s.closeSelect?.();for(const tooltip of document.querySelectorAll('.info-control.tip-open'))if(!e.composedPath().includes(tooltip)){tooltip.classList.remove('tip-open');tooltip.querySelector('button').setAttribute('aria-expanded','false');}for(const editor of document.querySelectorAll('.worker-editor'))if(!e.composedPath().includes(editor))editor.closeEditor?.();for(const d of document.querySelectorAll('.combo'))if(!e.composedPath().includes(d))d.closePicker?.();});$('#rules-help').append(infoButton('How rules work','Enable prompt previews in Settings to inspect a rule with Aa. Preview is read only and scrolls within the rule’s existing space; Save Rules keeps a draft; Apply Rules publishes it to agents. Runtime tools and shared delegation guidance are added by the harness. Can use permits delegation; Should use requires it for matching tasks. Multiple harnesses and models are alternatives: the parent chooses one per task. Workers inherit the parent’s folder. Thinking belongs to each model. New rules start off; enable them after validation passes. Validation checks installed harnesses and advertised settings, not provider billing or live model responses.'));renderSetup();void loadTasks();load();
+$('#add').addEventListener('click',()=>{config.routes.push(normalize({id:crypto.randomUUID(),parents:[],workers:[],models:[],reasoning:'',task:'Auto',enabled:false}));changed();renderRules();ensureCatalogs(config.routes.at(-1));});$('#save-only').addEventListener('click',()=>save(false));$('#save-apply').addEventListener('click',()=>save(true));$('#refresh').addEventListener('click',load);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const active=[...document.querySelectorAll('.worker-editor')].find(w=>w.querySelector('.model-select-row.expanded'));if(active)active.closeThinking?.();else for(const w of document.querySelectorAll('.worker-editor'))w.closeEditor?.();}});document.addEventListener('scroll',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();},true);window.addEventListener('resize',()=>{for(const picker of document.querySelectorAll('.combo'))picker.positionPicker?.();for(const s of document.querySelectorAll('.themed-select'))s.positionSelect?.();for(const w of document.querySelectorAll('.worker-editor'))w.positionThinking?.();});document.addEventListener('click',e=>{for(const s of document.querySelectorAll('.themed-select'))if(!e.composedPath().includes(s))s.closeSelect?.();for(const tooltip of document.querySelectorAll('.info-control.tip-open'))if(!e.composedPath().includes(tooltip)){tooltip.classList.remove('tip-open');tooltip.querySelector('button').setAttribute('aria-expanded','false');}for(const editor of document.querySelectorAll('.worker-editor'))if(!e.composedPath().includes(editor))editor.closeEditor?.();for(const d of document.querySelectorAll('.combo'))if(!e.composedPath().includes(d))d.closePicker?.();});$('#rules-help').append(infoButton('How rules work','Enable prompt previews in Settings to inspect a rule with Aa. Preview is read only and scrolls within the rule’s existing space; Save Rules keeps a draft; Apply Rules publishes it to agents. Runtime tools and shared delegation guidance are added by the harness. Can use permits delegation; Should use requires it for matching tasks. Multiple harnesses and models are alternatives: the parent chooses one per task. Workers inherit the parent’s folder. Thinking belongs to each model. New rules start off; enable them after validation passes. Validation checks installed harnesses and advertised settings, not provider billing or live model responses.'));renderAgents();renderSetup();void loadTasks();load();

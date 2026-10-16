@@ -2,7 +2,7 @@
 
 Use other coding agents as subagents—without leaving your own.
 
-A small, local Tauri app for routing work between coding-agent harnesses. Write a rule as a sentence, choose allowed harnesses/models, and apply it. Each worker runs in its own harness with its own provider settings and inherits the calling parent's project folder.
+A local desktop app and CLI for routing work between coding-agent harnesses. Write a rule as a sentence or edit its JSON, choose allowed harnesses/models, and apply it. Both interfaces share the same rules. Each worker runs in its own harness with its own provider settings and inherits the calling parent's project folder.
 
 MIT licensed. Requires **Node.js 22.13+** and installed harnesses. No hosted service or Bridge credential store. The main local release is tested on macOS Apple Silicon. Windows/Linux package configurations are included; native acceptance and standalone DeepSeek npm layouts are not yet verified.
 
@@ -27,7 +27,7 @@ Open `src-tauri/target/release/bundle/macos/Subagent Bridge.app`. This unsigned 
 3. **Save Rules** keeps a local draft without changing the rules agents read. **Save Rules and Apply** saves and publishes your edit, connecting supported native parents. After saving only, the primary action becomes **Apply Rules** and the secondary Save button disappears. Once applied, the footer shows **Saved and applied**. Initial connection or code updates need one reload/restart; later applied rule changes refresh each turn.
 
 After this per-model editor upgrade, reload already-running parent integrations and MCP servers before using the new settings. The Codex native client detects older retained daemons and refuses affected delegate/followup requests instead of losing the model's thinking override. Use a new Codex chat for those settings; status, completion delivery and cancellation stay available in the original chat. Bridge never restarts a retained worker or replays its work automatically.
-4. **Settings** shows installed versions, selected compatibility handlers, model discovery, connection state, and any unsupported modes.
+4. **Settings** separates **As orchestrator** from **As subagent**. Expand an agent for its installed version, compatibility evidence, reload instructions, and model discovery. **More ACP subagents** lists additional registry entries without implying that they are installed or live-tested. Previously checked installation state stays visible during refresh; a failed refresh does not disable your rules.
 
 There is no global project picker. Every parent instance supplies its own current folder and session identity. Two sessions in the same folder still own separate jobs. Pass a self-contained task with relevant context: full conversation history is not automatically copied.
 
@@ -53,7 +53,7 @@ Pi, OpenCode, and managed Codex expose `bridge_routes`, `bridge_delegate`, `brid
 
 ## Configure from another agent
 
-Settings shows native connections and asks: “Want your agent to manage Subagent Bridge?” Install the configuration MCP for an agent, or copy/preview its configuration. The MCP descriptions carry the full workflow; no separate skill is needed. A blue outline and green check identify an installed configuration; an existing session may still need a reload. Codex hook trust is queried read-only through its versioned app-server API. Unavailable approval status is shown as Configured, never a false request to review again.
+Settings keeps the optional MCP under **Let an agent manage your rules**. Install it for a supported agent, or expand **Manual setup** to copy/preview the harness-specific configuration. The MCP descriptions carry the full workflow; no separate skill is needed. A blue outline and green check identify an installed configuration; an existing session may still need a reload. Codex hook trust is queried read-only through its versioned app-server API. Unavailable approval status is shown as **Approval not verified**, never a false request to review again. **Configured** describes files on disk, not live-session or provider health.
 
 The configuration MCP uses the official MCP SDK over standard input/output:
 
@@ -63,7 +63,7 @@ subagent-bridge mcp
 
 Its five tools are `bridge_config_read`, `bridge_config_preview`, `bridge_config_save`, `bridge_agents_list`, and `bridge_models_list`. Read the current configuration and revision, preserve unrelated rules, preview the proposed full configuration, then save with that revision. A concurrent change rejects the save. The desktop editor uses the same revision check and retains an unsaved draft on conflict. Discovery reports installed versions and actual harness model catalogs; a catalog entry does not prove provider access.
 
-The MCP manages configuration and discovery. Background task execution and completion delivery remain the native parent integration's responsibility. Saving through MCP uses the same rule-save and native-connection operation as the app; it never submits a model task or accepts credentials. The MCP descriptions include the complete configuration workflow. A CLI fallback is also available:
+The MCP manages configuration and discovery. Background task execution and completion delivery remain the native parent integration's responsibility. Saving through MCP applies immediately using the same validation and native-connection operation as the app's Apply action; it never submits a model task or accepts credentials. The MCP descriptions include the complete configuration workflow. The existing immediate-save CLI remains available for automation:
 
 ```sh
 subagent-bridge config read
@@ -85,7 +85,17 @@ Worker execution uses **acpx 0.19.4**, pinned in the lockfile, through its expor
 | DeepSeek | `dsh --profile acp` | ACP session model/config options |
 | Claude | `claude-agent-acp` if separately installed | ACP / configured-model fallback; untested |
 
-Codex/Pi adapters must be on PATH or under `~/.harness-bridge/adapters/node_modules/.bin`. Tested adapter versions are `@agentclientprotocol/codex-acp@2.2.2` and `pi-acp@0.0.34`. Existing RPC discovery is retained separately from acpx execution. A visible model is not proof that an account can use it; execution errors remain authoritative.
+Codex/Pi adapters must be on PATH or under `~/.harness-bridge/adapters/node_modules/.bin`. Tested adapter versions are `@agentclientprotocol/codex-acp@2.2.2` and `pi-acp@0.0.34`. ACP discovery and execution share the pinned acpx runtime; Codex and Pi retain their native model catalogs. A visible model is not proof that an account can use it; execution errors remain authoritative.
+
+### Broader ACP workers (source build)
+
+The current source consumes the public **acpx agent-registry** API: 26 upstream entries plus Bridge's DeepSeek integration, for **27 catalog entries**. Examples include Gemini CLI, GitHub Copilot, Cursor, Kimi, Qwen Code, and OpenClaw. Launch arguments come from the pinned dependency rather than a second handwritten command map. The five existing launch integrations keep their compatibility behavior.
+
+Of these entries, 25 have local launch recipes; Fast Agent and Mux remain catalog-only because this pinned registry exposes package-runner recipes for them. Bridge never installs or executes an `npx`/`uvx` fallback during detection. Install the required launcher separately, refresh Settings, and discover its advertised ACP capabilities before enabling a rule. Model and thinking selection are accepted only when advertised; Auto can retain a harness-managed model even if no model list is exposed.
+
+These are **worker candidates**, not 27 native parent integrations or 27 live-tested providers. Codex, Pi, OpenCode, and DeepSeek retain the native parent handlers above. New worker records in `harnesses/<id>/compatibility.json` carry the registry version and empty live-tested-version lists. Generic protocol fixtures exercise discovery, thinking, execution, and same-session follow-ups; each real harness/provider still needs live acceptance. The published v0.2.0 installer predates this catalog expansion.
+
+Existing explicit rules keep their IDs, models, and integration paths. An **Auto worker** rule means any available worker, so newly installed registry workers become additional alternatives after an upgrade. The parent still chooses exactly one; there is no automatic fan-out.
 
 DeepSeek provider definitions and selected model are read from the web profile into a temporary owner-only ACP patch. Only provider settings are imported, not web plugins. Credentials remain in their existing harness configuration. The temporary patch is removed after execution. Parent installation adds a separate managed row to profile patches, preserving existing YAML and backing it up first.
 
@@ -119,7 +129,10 @@ harnesses/
   opencode/  versions.mjs · integration.mjs · v1/ · v2/README.md
   deepseek/  versions.mjs · integration.mjs · worker.mjs · v0_2_rc2/plugin.mjs
   claude/    deferred integration record
+  gemini/    compatibility.json (registry worker record)
+  .../       one compatibility record per additional registry worker
 lib/
+  agent-registry.mjs  installed-only catalog from pinned acpx
   compatibility.mjs   installed-version parsing and selection
   parent-bridge.mjs    shared job scoping, cancellation and result delivery
   runtime/acpx.mjs    shared ACP worker runtime
@@ -140,9 +153,21 @@ Pi/OpenCode/managed Codex limit active Bridge jobs to four per instance and reta
 
 Bridge advertises no client-side filesystem or terminal capabilities and cancels elevation requests. Existing worker permissions remain those of the worker harness. Shared folders are not an OS sandbox; concurrent edits are not automatically isolated or merged. Interactive worker approvals, cross-restart job persistence, and arbitrary native subagent-UI parity are not included.
 
-## Optional CLI/browser
+## CLI and shared configuration
 
-`node bin.mjs` starts the optional loopback UI on port 4780. `npm pack` produces the CLI/browser package; it has not been published to npm. `npm test` runs local regression tests. Tauri builds stage production dependencies separately from development tools.
+The CLI uses the desktop app's existing `~/.harness-bridge/config.json` and saved draft. No conversion or separate configuration is needed. With Node.js 22.13+, run it from a stable source checkout with `node bin.mjs`, or build a package with `npm pack` and install that tarball globally. The package has not been published to npm.
+
+```sh
+subagent-bridge config edit --editor "code --wait"
+subagent-bridge config preview
+subagent-bridge config apply
+```
+
+Editing or importing saves a draft, just like **Save Rules**. Applying validates enabled rules, publishes the shared configuration, and installs or updates supported native parent connections. Refresh or reopen the desktop app to see CLI changes. Existing connected parents read applied rule changes on their next turn; integration changes may need a reload or hook approval. Use `config edit --apply` for the combined action.
+
+`config show` prints editable JSON; `config show --active` reads the rules agents currently use. `config status` reports the draft and active revisions. See the [CLI guide](docs/cli.md) for installation, import/export, safe editing, and script usage, and [a disabled example rule](examples/rules.json) for the file format.
+
+Discovery and execution commands are also available:
 
 ```sh
 subagent-bridge detect
@@ -151,12 +176,12 @@ subagent-bridge routes --parent pi
 subagent-bridge delegate --route RULE_ID --parent pi --workspace /project --task "Review the changes"
 ```
 
-Legacy `apply` remains a manual project-instruction fallback; the desktop Save flow does not require or modify project instruction files.
+`node bin.mjs` without a command starts the optional loopback UI on port 4780. Plain `delegate` waits for its result; background delegation and same-session follow-ups use native parent integrations. Legacy `apply DIRECTORY` remains a manual project-instruction fallback, distinct from `config apply`; the desktop Save flow does not require or modify project instruction files. `npm test` runs local regression tests. Tauri builds stage production dependencies separately from development tools.
 
 ## Desktop packages and platform support
 
 The main app is **Subagent Bridge 0.2.0**, with one editor and one arrow icon.
-Enable **Settings → Advanced → Show prompt previews** to reveal the **Aa** button (off by default, saved on this device). The button on each rule replaces only that rule’s controls with read-only parent routing
+Enable **Settings → Preferences → Show prompt previews** to reveal the **Aa** button (off by default, saved on this device). The button on each rule replaces only that rule’s controls with read-only parent routing
 instructions generated by the same function used by the integrations. Off rules
 are clearly marked inactive. The preview occupies the same space as its sentence and scrolls internally; other rules stay unchanged. Shared harness instructions and runtime bindings are separate from this rule preview.
 Preview reflects the current draft; Apply publishes it. The worker task, runtime tool
@@ -182,7 +207,7 @@ compatible host's FUSE setup. Do not infer platform acceptance from package
 configuration alone. See the [macOS installation guide](docs/install-macos.md)
 for requirements, pinned worker adapters, first launch, and upgrade instructions.
 
-Desktop drafts are stored separately in `~/.harness-bridge/editor-draft.json`. The live `config.json` remains unchanged until Apply. MCP/CLI configuration saves continue to apply immediately. A newer external apply supersedes a pending desktop draft without discarding its recoverable contents; stale apply requests are rejected. The Aa surface displays exact prompt text, including literal Markdown, in a tinted monospace container with internal scrolling.
+Desktop **Save Rules** and CLI `config edit` / `config import` share `~/.harness-bridge/editor-draft.json`. The live `config.json` remains unchanged until Apply. MCP saves and the legacy CLI `config save` command still apply immediately. A newer external apply supersedes a pending draft without discarding its recoverable contents; stale apply requests are rejected. The Aa surface displays exact prompt text, including literal Markdown, in a tinted monospace container with internal scrolling.
 
 ## Existing installations
 

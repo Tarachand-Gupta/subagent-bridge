@@ -25,7 +25,9 @@
     "README.md",
     "LICENSE",
     "harnesses",
-    "desktop-bridge.mjs"
+    "desktop-bridge.mjs",
+    "docs/cli.md",
+    "examples/rules.json"
   ],
   "license": "MIT",
   "devDependencies": {
