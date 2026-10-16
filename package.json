@@ -1,6 +1,6 @@
 {
   "name": "subagent-bridge-local",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Use other coding agents as subagents\u2014without leaving your own.",
   "type": "module",
   "bin": {
