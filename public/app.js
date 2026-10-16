@@ -1,4 +1,5 @@
 import {parentSetup,workerSetup,failedDiscovery} from './setup-state.mjs';
+import {setupConfiguration} from './configuration-ui.mjs';
 import {DEFAULT_TASKS,uniqueTaskName} from './task-library.mjs';
 import {ruleInstruction} from './rule-prompt.mjs';
 import {ruleReadiness,defaultThinking} from './rule-validation.mjs';
@@ -8,6 +9,7 @@ let taskState={tasks:structuredClone(DEFAULT_TASKS),revision:null},tasksLoading=
 const modelProbes=new Map();
 const catalogs=new Map(),probing=new Set(),cards=new Map(),installing=new Set();let setupStatus=null,setupLoading=false,setupError='',setupRevision=0;let baseRevision,appliedRevision,savedSnapshot,actionInProgress='';let agents=[],config={version:1,routes:[]},loaded=false,dirty=false,busy=false,connections={};
 let setupCheckedAt=null,inventoryCheckedAt=null,inventoryRefreshing=false,inventoryError='';const promptPreviews=new Set(),openAgentDetails=new Set();
+let configurationUI;
 try{const cached=JSON.parse(localStorage.getItem('bridge-inventory-v1')||'null');if(cached?.agents?.length){agents=cached.agents;connections=cached.connections||{};inventoryCheckedAt=cached.checkedAt;}}catch{}
 function refreshAgentNames(){for(const agent of agents)names[agent.id]=agent.name||agent.id;}
 refreshAgentNames();
@@ -32,6 +34,7 @@ function controls(){
  $('#add').disabled=false;
  const attention=Object.values(connections).some(c=>c.current&&(c.trustRequired===true||c.hooksDisabled));
  $('#save-status').textContent=busy?(actionInProgress||'Checking…'):!loaded?'Waiting for connection':dirty?'Unsaved changes':pending?'Saved · not applied':needsConnection?'Saved · connection needs attention':attention?'Applied · review connections in Settings':'Saved and applied';
+ configurationUI?.update();
 }
 
 function infoButton(label,text){
@@ -396,8 +399,9 @@ renderTaskLibrary();
 $('#load-latest').addEventListener('click',loadLatest);
 function showSettings(open){
  $('#agents-panel').hidden=!open;$('#rules-panel').hidden=open;$('#rules-actions').hidden=open;const button=$('#settings-toggle');button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',open?'Close settings':'Open settings');button.querySelector('span').textContent=open?'Close settings':'Settings';button.querySelector('.settings-gear').toggleAttribute('hidden',open);button.querySelector('.settings-close').toggleAttribute('hidden',!open);document.body.classList.toggle('settings-open',open);window.scrollTo(0,0);
- if(open){renderSetup();void loadTasks();void load();}else $('#settings-toggle').focus({preventScroll:true});
+ if(open){renderSetup();void loadTasks();void load();void configurationUI.refresh();}else $('#settings-toggle').focus({preventScroll:true});
 }
+configurationUI=setupConfiguration({api,native,infoButton,getEditor:()=>({config:structuredClone(config),dirty,loaded,busy,revision:baseRevision,pending:baseRevision!==appliedRevision}),importDraft:value=>{config=value;config.routes=config.routes.map(normalize);changed();renderRules();renderTaskLibrary();for(const rule of config.routes)ensureCatalogs(rule);notice('Configuration imported into your draft. Review the rules, then Save or Save and Apply.');},showRules:()=>showSettings(false)});
 $('#settings-toggle').addEventListener('click',()=>showSettings($('#agents-panel').hidden));
 $('#show-prompt-previews').checked=showPromptPreviews;
 $('#show-prompt-previews').addEventListener('change',event=>{

@@ -1,6 +1,6 @@
 # Install Subagent Bridge on macOS
 
-Version 0.3.0 is an early preview for Apple Silicon (M1 or newer), targeting macOS
+Version 0.3.1 is an early preview for Apple Silicon (M1 or newer), targeting macOS
 12 or later. It has been tested on the maintainer's Mac, not on every supported
 macOS version. Intel Macs, Windows, and Linux do not have a published installer yet.
 
@@ -12,7 +12,7 @@ model subscriptions, API credits, or the agents themselves. Models use each
 agent's existing provider configuration and permissions.
 
 Download the DMG from:
-https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.0
+https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.1
 
 Open it and drag Subagent Bridge into Applications. Launch it from Applications,
 not from the mounted disk image: agent integrations need a stable install path.
