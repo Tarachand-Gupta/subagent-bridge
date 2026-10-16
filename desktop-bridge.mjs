@@ -1,15 +1,20 @@
 import {taskLibrary,saveTask} from './lib/task-library.mjs';
+import {configurationPaths,configurationState,validateConfiguration,MAX_CONFIGURATION_BYTES} from './lib/config-transfer.mjs';
 import {editorState,saveEditorDraft,applyEditorRules} from './lib/editor-state.mjs';
 import {validateEnabledRules} from './lib/rule-validation.mjs';
 import {connectionStatus,saveAndConnect} from './lib/connections.mjs';
 import {detect,load,save,apply,configRevision} from './lib/core.mjs';
 import {setupStatus,installSetup} from './lib/setup.mjs';
 import {probe} from './lib/agents.mjs';
-let input='';for await(const chunk of process.stdin){input+=chunk;if(input.length>262144)throw new Error('Request too large');}
 try {
- const {method,path,body}=JSON.parse(input);let result;
+ const chunks=[];let bytes=0;for await(const chunk of process.stdin){bytes+=chunk.length;if(bytes>MAX_CONFIGURATION_BYTES)throw new Error('Request too large');chunks.push(chunk);}
+ let request;try{request=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new Error('Request must contain valid JSON.');}
+ const {method,path,body}=request;let result;
  if(method==='GET'&&path==='/api/state'){const state=await editorState();result={agents:await detect(),...state,connections:await connectionStatus(),integration:'Native parent integrations with persistent worker conversations'};}
  else if(method==='GET'&&path==='/api/tasks')result=await taskLibrary();
+ else if(method==='GET'&&path==='/api/configuration')result=await configurationState();
+ else if(method==='GET'&&path==='/api/configuration-path')result=configurationPaths();
+ else if(method==='POST'&&path==='/api/configuration/validate')result=validateConfiguration(body?.config);
  else if(method==='POST'&&path==='/api/task-save')result=await saveTask(body);
  else if(method==='GET'&&path==='/api/setup-status')result=await setupStatus();
  else if(method==='POST'&&path==='/api/setup-install'){await installSetup(body.kind,body.id);result=await setupStatus();}

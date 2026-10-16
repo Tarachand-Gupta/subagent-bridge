@@ -6,7 +6,7 @@ The CLI and desktop app use the same configuration. You can edit a rule in eithe
 
 Requires Node.js **22.13+** and separately installed, configured harnesses. The CLI is available from GitHub Releases or source; it has not been published to the npm registry.
 
-Download the `.tgz` package from [v0.3.0](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.0) and install it with `npm install --global ./subagent-bridge-local-0.3.0.tgz`, or use a stable checkout:
+Download the `.tgz` package from [v0.3.1](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.1) and install it with `npm install --global ./subagent-bridge-local-0.3.1.tgz`, or use a stable checkout:
 
 ```sh
 npm ci
@@ -18,7 +18,7 @@ To install the command on your PATH, pack that checkout and install the resultin
 
 ```sh
 npm pack
-npm install --global ./subagent-bridge-local-0.3.0.tgz
+npm install --global ./subagent-bridge-local-0.3.1.tgz
 subagent-bridge --help
 ```
 
