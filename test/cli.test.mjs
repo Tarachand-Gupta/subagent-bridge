@@ -188,6 +188,14 @@ await save(${JSON.stringify(makeConfig('External apply'))});`);
   const refusedApply = await cli(home, ['config', 'apply']);
   assert.equal(refusedApply.code, 1);
   assert.equal(refusedApply.data.error.code, 'CONFIG_CONFLICT');
+  for(const flags of [[],['--apply']]){
+    // Neither editing mode may erase a superseded draft, even if the editor
+    // would exit successfully without making a change.
+    await writeFile(editor, 'process.exit(0);');
+    const refusedEdit=await cli(home,['config','edit','--editor',command,...flags]);
+    assert.equal(refusedEdit.code,1);
+    assert.equal(refusedEdit.data.error.code,'CONFIG_CONFLICT');
+  }
   assert.equal(await readFile(draftFile, 'utf8'), preservedBytes);
   assert.equal((await readEditorState(home)).config.routes[0].task, 'External apply');
   const reconciled = path.join(dir, 'reconciled.json');

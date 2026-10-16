@@ -13,10 +13,21 @@ const fs=require('node:fs');fs.writeFileSync(${JSON.stringify(path.join(cwd,'pid
 }
 async function dead(cwd){const pid=Number(await readFile(path.join(cwd,'pid'),'utf8'));assert.throws(()=>process.kill(pid,0));}
 test('abort during initialize immediately rejects pending request and disposes owned process',async()=>{
- const f=await fixture('hang-init'),controller=new AbortController();const start=Date.now();
+ const f=await fixture('hang-init'),controller=new AbortController();
  const running=runParent({...f,task:'test',signal:controller.signal});
- for(let i=0;i<100;i++){try{await readFile(path.join(f.cwd,'pid'));break;}catch{await new Promise(r=>setTimeout(r,10));}}controller.abort();
- await assert.rejects(running,/cancelled/);assert.ok(Date.now()-start<2000);await dead(f.cwd);
+ running.catch(()=>{});
+ try{
+  // Wait for protocol admission, not a guessed process startup duration. A busy
+  // build machine may not have scheduled the fixture within the old one second.
+  const deadline=Date.now()+10000;let initialized=false;
+  while(Date.now()<deadline){
+   try{initialized=(await readFile(f.log,'utf8')).includes('"method":"initialize"');}catch(error){if(error.code!=='ENOENT')throw error;}
+   if(initialized)break;await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  assert.ok(initialized,'fixture received initialize before cancellation');
+  const start=Date.now();controller.abort();
+  await assert.rejects(running,/cancelled/);assert.ok(Date.now()-start<2000);await dead(f.cwd);
+ }finally{controller.abort();await running.catch(()=>{});}
 });
 test('disconnect after turn admission never resubmits uncertain prompt',async()=>{
  const f=await fixture('disconnect');await assert.rejects(runParent({...f,task:'test',bridgeCall:async()=>[]}),/disconnected/);

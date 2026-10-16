@@ -4,9 +4,9 @@ The CLI and desktop app use the same configuration. You can edit a rule in eithe
 
 ## Install
 
-Requires Node.js **22.13+** and separately installed, configured harnesses. The current CLI is available from source; it has not been published to npm.
+Requires Node.js **22.13+** and separately installed, configured harnesses. The CLI is available from GitHub Releases or source; it has not been published to the npm registry.
 
-From a stable checkout:
+Download the `.tgz` package from [v0.3.0](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.0) and install it with `npm install --global ./subagent-bridge-local-0.3.0.tgz`, or use a stable checkout:
 
 ```sh
 npm ci
@@ -18,7 +18,7 @@ To install the command on your PATH, pack that checkout and install the resultin
 
 ```sh
 npm pack
-npm install --global ./subagent-bridge-local-0.2.0.tgz
+npm install --global ./subagent-bridge-local-0.3.0.tgz
 subagent-bridge --help
 ```
 
@@ -52,7 +52,7 @@ Use `config edit --apply` to combine editing and applying. Refresh or reopen the
 
 Run `config path` for the actual live file path and `config status` for the current draft/applied state. `--home DIRECTORY` overrides the Bridge data directory for that invocation and its children; `HARNESS_BRIDGE_HOME` is also supported. This does not redirect an already-running desktop app or existing parent integrations. An alternate home is a separate configuration, not a sandbox for integration installation.
 
-Edit through the CLI rather than modifying the live file directly. The editor validates JSON, checks for concurrent changes, and leaves the live configuration untouched until Apply. On an editor, validation, or conflict error, the CLI reports a recovery file when available. Reconcile it with the latest state before importing again. A newer external apply can supersede a saved draft; `config status` reports whether such a draft was preserved. Applying that superseded draft returns `CONFIG_CONFLICT` rather than discarding it. Recover it with `config show --preserved --output recovered-rules.json`, reconcile it with the active configuration, and import the reconciled file before applying.
+Edit through the CLI rather than modifying the live file directly. The editor validates JSON, checks for concurrent changes, and leaves the live configuration untouched until Apply. On an editor, validation, or conflict error, the CLI reports a recovery file when available. Reconcile it with the latest state before importing again. A newer external apply can supersede a saved draft; `config status` reports whether such a draft was preserved. Editing or applying while that superseded draft exists returns `CONFIG_CONFLICT` rather than discarding it. Recover it with `config show --preserved --output recovered-rules.json`, reconcile it with the active configuration, and import the reconciled file before applying.
 
 ## Import and export
 
