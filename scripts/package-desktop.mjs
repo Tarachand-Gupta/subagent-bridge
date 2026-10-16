@@ -28,6 +28,7 @@ if(process.platform==='darwin'){
  if(identity)await signMacApp(app,identity);
  else if(signature.status!==0||signature.stderr.includes('Signature=adhoc'))run('codesign',['--force','--sign','-','--timestamp=none',app]);
  run('codesign',['--verify','--deep','--strict',app]);
+ if(process.argv.includes('--app-only'))process.exit(0);
  const stage=await mkdtemp(path.join(tmpdir(),'harness-bridge-dmg-'));
  try{
   run('ditto',[app,path.join(stage,`${config.productName}.app`)]);
