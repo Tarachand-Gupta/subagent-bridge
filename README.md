@@ -4,7 +4,7 @@
 
 Let the coding agent you're working with ask another agent for help. Choose who can help, which model to use, and when to delegate. Each subagent uses its own tools and provider settings, in your current project folder.
 
-[Website](https://tarachand-gupta.github.io/subagent-bridge-site/) · [Download for macOS](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.1) · [Documentation](docs/README.md)
+[Website](https://tarachand-gupta.github.io/subagent-bridge-site/) · [Download for macOS](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.2) · [Documentation](docs/README.md)
 
 ![Subagent Bridge desktop app showing delegation rules for Pi, OpenCode, DeepSeek, and Codex](docs/images/subagent-bridge-rule-editor.png)
 
@@ -22,11 +22,11 @@ The subagent works in the background while you continue. Follow up in the same w
 
 You'll need **Node.js 22.13+** and the coding agents you want to connect, already installed and configured.
 
-1. [Download the app](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.1) and move it to Applications.
+1. [Download the app](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.2) and move it to Applications.
 2. Add a rule. Choose a task, subagent, model, and thinking level, then enable it.
 3. Click **Save Rules and Apply** and follow any connection or reload instructions.
 
-The macOS preview is for Apple Silicon, macOS 12+. It is ad-hoc signed and not notarized. [Installation and first-launch help →](docs/install-macos.md)
+The macOS preview is for Apple Silicon, macOS 12+. The release is Developer ID signed and notarized by Apple. [Installation and first-launch help →](docs/install-macos.md)
 
 <details>
 <summary>Prefer the terminal?</summary>
@@ -34,7 +34,7 @@ The macOS preview is for Apple Silicon, macOS 12+. It is ad-hoc signed and not n
 Download the CLI `.tgz` from the same release, then:
 
 ```sh
-npm install --global ./subagent-bridge-local-0.3.1.tgz
+npm install --global ./subagent-bridge-local-0.3.2.tgz
 subagent-bridge config edit
 subagent-bridge config preview
 subagent-bridge config apply
@@ -70,6 +70,6 @@ See [tested versions and connection details](docs/integrations.md). Windows and 
 - [CLI guide](docs/cli.md) — use the same configuration from your terminal.
 - [Agent integrations](docs/integrations.md) — versions, delivery, and limits.
 - [Development](docs/development.md) — build, test, and contribute.
-- [Release notes](docs/releases/v0.3.1.md) · [Report a bug](https://github.com/Tarachand-Gupta/subagent-bridge/issues)
+- [Release notes](docs/releases/v0.3.2.md) · [Report a bug](https://github.com/Tarachand-Gupta/subagent-bridge/issues)
 
 [MIT license](LICENSE).

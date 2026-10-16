@@ -1,6 +1,6 @@
 # Install Subagent Bridge on macOS
 
-Version 0.3.1 is an early preview for Apple Silicon (M1 or newer), targeting macOS
+Version 0.3.2 is an early preview for Apple Silicon (M1 or newer), targeting macOS
 12 or later. It has been tested on the maintainer's Mac, not on every supported
 macOS version. Intel Macs, Windows, and Linux do not have a published installer yet.
 
@@ -12,7 +12,7 @@ model subscriptions, API credits, or the agents themselves. Models use each
 agent's existing provider configuration and permissions.
 
 Download the DMG from:
-https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.1
+https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.2
 
 Open it and drag Subagent Bridge into Applications. Launch it from Applications,
 not from the mounted disk image: agent integrations need a stable install path.
@@ -20,19 +20,15 @@ The DMG also contains this Read Me.
 
 ## First launch and macOS security
 
-This preview is ad-hoc signed for bundle integrity. It is not Developer ID signed
-or notarized by Apple, so macOS may block the first launch. If you trust this
-release, after attempting to open it, go to System Settings → Privacy & Security
-and use Open Anyway for Subagent Bridge, then confirm Open. On older macOS
-versions this is in System Preferences → Security & Privacy.
+The v0.3.2 release is signed with Tarachand Gupta’s Developer ID Application
+certificate and notarized by Apple. The DMG and its app include stapled notary
+tickets. Open it normally; macOS may ask you to confirm opening an app downloaded
+from the internet. You should not need the earlier preview’s Open Anyway workaround.
 
-Apple's current instructions:
-https://support.apple.com/en-us/102445
-
-Do not disable Gatekeeper globally. If macOS reports the app is damaged or will
-harm your computer, stop and report the exact alert instead of bypassing it.
-SHA256SUMS is included with the release for checking download integrity; it is not
-an Apple signature or a substitute for notarization.
+If macOS reports that the app is damaged, unidentified, or will harm your computer,
+stop and report the exact alert. Do not disable Gatekeeper. Check that you downloaded
+v0.3.2 or later from the official release page: v0.3.1 and earlier were ad-hoc signed
+and not notarized. SHA256SUMS is provided to verify download integrity.
 
 ## Connect your agents
 

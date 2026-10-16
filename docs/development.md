@@ -25,6 +25,8 @@ npm run desktop:package
 
 On macOS, open `src-tauri/target/release/bundle/macos/Subagent Bridge.app`. The native app uses Tauri IPC and does not need a browser server. Tauri builds stage production dependencies separately from development tools; Node and the harnesses remain external dependencies.
 
+For a distributable Mac build, follow [Developer ID signing and notarization](macos-signing.md).
+
 ## Check changes
 
 ```sh
@@ -45,9 +47,9 @@ through cross-spawn; Codex hook configuration is passed as base64 through an
 encoded PowerShell command. Native Windows CLI callers can pass `--json-file`
 instead of relying on PowerShell's native JSON argument escaping.
 
-Build packages on their target OS. The public macOS preview is ad-hoc signed for
-bundle integrity and not notarized. Developer ID signing and notarization remain
-outstanding. Native Windows/Linux harness sessions require separate live
+Build packages on their target OS. The v0.3.2 macOS release is Developer ID signed and notarized;
+local builds without a signing identity remain ad-hoc. See the
+[release signing procedure](macos-signing.md). Native Windows/Linux harness sessions require separate live
 acceptance testing before publishing their installers. Linux AppImages need a
 compatible host's FUSE setup. Do not infer platform acceptance from package
 configuration alone. See the [macOS installation guide](install-macos.md)
