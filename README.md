@@ -6,9 +6,9 @@ Let the coding agent you're working with ask another agent for help. Choose who 
 
 [Website](https://tarachand-gupta.github.io/subagent-bridge-site/) · [Download for macOS](https://github.com/Tarachand-Gupta/subagent-bridge/releases/tag/v0.3.1) · [Documentation](docs/README.md)
 
-![Subagent Bridge rule editor showing Codex delegating a code review to Pi and Pi delegating research to OpenCode](docs/images/subagent-bridge-rule-editor.jpg)
+![Subagent Bridge desktop app showing delegation rules for Pi, OpenCode, DeepSeek, and Codex](docs/images/subagent-bridge-rule-editor.png)
 
-*The app's rule editor, shown with an example configuration.*
+*The Subagent Bridge desktop app.*
 
 ## A rule is a sentence
 
