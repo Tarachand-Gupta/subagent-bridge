@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Subagent Bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "dev.harnessbridge.desktop",
   "build": {
     "frontendDist": "../public",
@@ -38,7 +38,9 @@
       "../harnesses/": "backend/harnesses/",
       "../public/rule-validation.mjs": "backend/public/rule-validation.mjs",
       "../public/rule-prompt.mjs": "backend/public/rule-prompt.mjs",
-      "../public/task-library.mjs": "backend/public/task-library.mjs"
+      "../public/task-library.mjs": "backend/public/task-library.mjs",
+      "../docs/cli.md": "backend/docs/cli.md",
+      "../examples/rules.json": "backend/examples/rules.json"
     },
     "macOS": {
       "minimumSystemVersion": "12.0"

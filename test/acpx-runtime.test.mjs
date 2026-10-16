@@ -3,7 +3,17 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {openAcpxWorker} from '../lib/runtime/acpx.mjs';
+import {openAcpxWorker,isAcpxCommandProbe} from '../lib/runtime/acpx.mjs';
+test('command diagnostics are separate from ACP workers including Windows command shims',()=>{
+ assert.equal(isAcpxCommandProbe('gemini',{command:'/bin/gemini',args:['--version']}),true);
+ assert.equal(isAcpxCommandProbe('copilot',{command:'node.exe',args:['C:\\Tools\\copilot.js','--help']}),true);
+ assert.equal(isAcpxCommandProbe('gemini',{command:'C:\\Windows\\System32\\cmd.exe',args:['/d','/s','/c','"C:\\Tools\\gemini.cmd ^"--version^""']}),true);
+ assert.equal(isAcpxCommandProbe('copilot',{command:'cmd.exe',args:['/d','/s','/c','"C:\\Program Files\\copilot.cmd ^"--help^""']}),true);
+ assert.equal(isAcpxCommandProbe('gemini',{command:'cmd.exe',args:['/d','/s','/c','"C:\\Tools\\gemini.cmd ^"--acp^""']}),false);
+ assert.equal(isAcpxCommandProbe('gemini',{command:'/bin/gemini',args:['--acp']}),false);
+ assert.equal(isAcpxCommandProbe('copilot',{command:'/bin/copilot',args:['--acp','--stdio']}),false);
+ assert.equal(isAcpxCommandProbe('opencode',{command:'/bin/opencode',args:['--version']}),false);
+});
 test('acpx preserves cwd, model/thinking choices and conservative capabilities',async()=>{
  const cwd=await mkdtemp(path.join(tmpdir(),'bridge-acpx-controls-'));
  const script=path.join(cwd,'worker.cjs'),log=path.join(cwd,'requests.jsonl');

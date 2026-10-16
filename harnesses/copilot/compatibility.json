@@ -1,0 +1,12 @@
+{
+  "id": "copilot",
+  "registry": "acpx",
+  "registryVersion": "0.19.4",
+  "source": "https://github.com/openclaw/acpx/blob/main/docs/agents.md",
+  "api": "acpx/agent-registry.createAgentRegistry().inspect",
+  "role": "worker",
+  "launchPolicy": "installed-only",
+  "catalogOnly": false,
+  "nativeParent": false,
+  "liveTestedVersions": []
+}
