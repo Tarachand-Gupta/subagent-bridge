@@ -1,0 +1,7 @@
+[mcp_servers.god-mcp]
+command = "uv"
+args = ["run", "--directory", "/Users/tara/Developer/god_mcp/god-mcp", "god-mcp"]
+
+[mcp_servers.god-mcp.env]
+GOD_MCP_AGENT = "codex"
+GOD_MCP_WORKSPACE = "/Users/tara/Developer/harness-bridge"
